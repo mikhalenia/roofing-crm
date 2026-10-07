@@ -25,6 +25,7 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
+    "test-setup.ts",
     "src/**/*.d.ts"
   ]
 }
