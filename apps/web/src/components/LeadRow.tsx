@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, IconButton, MenuItem, Select, TableCell, TableRow, TextField } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { LeadStatus, type LeadRecord } from "@crm/contracts";
-import { formatCount } from "../state/labels";
+import { formatCount, permitStateLabel } from "../state/labels";
 
 const DEBOUNCE_MS = 500;
 
@@ -66,7 +66,7 @@ export function LeadRow({ lead, onStatus, onNotes, onDelete, onShowOnMap }: Prop
         />
       </TableCell>
       <TableCell>{s.roofAgeYears != null ? `${s.roofAgeYears} yrs` : "-"}</TableCell>
-      <TableCell>{s.permitState ?? "-"}</TableCell>
+      <TableCell>{s.permitState ? permitStateLabel(s.permitState) : "-"}</TableCell>
       <TableCell>{s.daysOpen != null ? formatCount(s.daysOpen) : "-"}</TableCell>
       <TableCell>{lead.createdAt.slice(0, 10)}</TableCell>
       <TableCell sx={{ whiteSpace: "nowrap" }}>
