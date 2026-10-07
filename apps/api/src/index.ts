@@ -35,14 +35,14 @@ app.post("/agent", async (c) => {
   try {
     return c.json(await runAgent(c.env, parsed.data, getAgentDeps()), 200);
   } catch (err) {
-    console.error(err);
+    console.error(err instanceof Error ? err.message : err);
     return c.json({ error: err instanceof Error ? err.message : String(err) }, 502);
   }
 });
 
 app.notFound((c) => c.json({ error: "not found" }, 404));
 app.onError((err, c) => {
-  console.error(err);
+  console.error(err instanceof Error ? err.message : err);
   return c.json({ error: "internal error" }, 500);
 });
 
