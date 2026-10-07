@@ -4,6 +4,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import { useAgent } from "../state/AgentContext";
 import { useSearch } from "../state/SearchContext";
+import { AgentAnswer } from "./AgentAnswer";
 import { PropertyDrawer } from "./PropertyDrawer";
 
 const EXAMPLES = [
@@ -11,11 +12,6 @@ const EXAMPLES = [
   "Open roofing permits open for more than 3 years near Sunnyvale, who is the contractor?",
   "Save the three oldest roofs near Cupertino as leads",
 ];
-
-const compact = (v: unknown) => {
-  const s = JSON.stringify(v) ?? "";
-  return s.length > 80 ? `${s.slice(0, 77)}...` : s;
-};
 
 interface Props {
   /** Rendered next to the map on the Prospect page (narrow column, close button). */
@@ -88,45 +84,12 @@ export function AgentPanel({ embedded = false, onClose }: Props) {
       {loading && <CircularProgress size={24} aria-label="Loading" />}
       {error && <Alert severity="error">{error}</Alert>}
       {result && (
-        <>
-          <Box data-testid="agent-tool-calls">
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Tool calls</Typography>
-            {result.toolCalls.length === 0 && <Typography variant="body2">None.</Typography>}
-            {result.toolCalls.map((t, i) => (
-              <Box key={i} sx={{ mb: 0.5 }}>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", overflowWrap: "anywhere" }}>
-                  {t.name} {compact(t.args)} · {t.resultCount} results
-                </Typography>
-                {t.error && (
-                  <Typography variant="body2" sx={{ color: "error.main" }}>{t.error}</Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-          <Typography data-testid="agent-answer" sx={{ whiteSpace: "pre-wrap" }}>{result.answer}</Typography>
-          {result.sources.length > 0 && (
-            <Stack data-testid="agent-sources" sx={{ flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
-              {result.sources.map((s) => {
-                const isTarget = s.apn === answeredTarget?.apn;
-                return (
-                  <Chip
-                    key={`${s.apn}:${s.permitNumber ?? ""}`}
-                    label={[s.address ?? s.apn, s.permitNumber].filter(Boolean).join(" · ")}
-                    color={isTarget ? "primary" : "default"}
-                    variant={isTarget ? "filled" : "outlined"}
-                    aria-current={isTarget ? "true" : undefined}
-                    onClick={() => showSource(s.apn)}
-                  />
-                );
-              })}
-            </Stack>
-          )}
-          <Box>
-            <Button variant="outlined" disabled={result.resolvedFilters == null} onClick={apply}>
-              Apply to map
-            </Button>
-          </Box>
-        </>
+        <AgentAnswer
+          result={result}
+          targetApn={answeredTarget?.apn ?? null}
+          onSource={showSource}
+          onApply={apply}
+        />
       )}
       <PropertyDrawer apn={selected} pin={state.pin} onClose={() => setSelected(null)} onAsk={askAbout} />
     </Stack>

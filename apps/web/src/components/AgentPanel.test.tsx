@@ -62,7 +62,7 @@ function setup() {
 const response = {
   answer: "Found 2 roofs.\nSecond line.",
   toolCalls: [
-    { name: "search_aged_roofs", args: { minRoofAgeYears: 15 }, resultCount: 2 },
+    { name: "find_aged_roofs", args: { minRoofAgeYears: 15 }, resultCount: 2 },
     { name: "create_lead", args: { apn: "X" }, resultCount: 0, error: "lead exists" },
   ],
   sources: [{ apn: "A1", address: "1 Main St", permitNumber: "BLD-1" }, { apn: "A2" }],
@@ -88,9 +88,10 @@ describe("AgentPanel", () => {
       question: "Which roofs are oldest?",
       context: { lat: 37.3382, lon: -121.8863, radiusMiles: 5 },
     });
-    expect(screen.getByText("Tool calls")).toBeInTheDocument();
-    expect(screen.getByText(/search_aged_roofs/)).toBeInTheDocument();
-    expect(screen.getByText(/2 results/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /How this was answered · 2 tool calls/ })).toBeInTheDocument();
+    expect(screen.queryByText(/find_aged_roofs/)).toBeNull();
+    expect(screen.getByText("Searched aged roofs · roof at least 15 yrs · 2 results")).toBeInTheDocument();
+    expect(screen.getByText("Saved a lead · APN X · failed")).toBeInTheDocument();
     expect(screen.getByText("lead exists")).toBeInTheDocument();
     fireEvent.click(screen.getByText("1 Main St · BLD-1"));
     expect(screen.getByText("drawer A1")).toBeInTheDocument();
@@ -108,7 +109,7 @@ describe("AgentPanel", () => {
   it("applies resolved filters to search state and navigates to Prospect", async () => {
     setup();
     await ask();
-    fireEvent.click(await screen.findByRole("button", { name: "Apply to map" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show all 2 on map" }));
     expect(await screen.findByText("prospect page")).toBeInTheDocument();
     const probe = JSON.parse(screen.getByTestId("probe").textContent ?? "{}");
     expect(probe.pin).toEqual({ lat: 37.35, lon: -122.0 });
