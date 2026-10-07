@@ -123,6 +123,27 @@ export function mergeResults(
 /** A response whose search is no longer the latest one started (any mount of the page). */
 const isStale = (state: SearchState, key: string | undefined) => key !== undefined && key !== state.lastSearchKey;
 
+/** A permit the pipeline counts as stalled: expired without a final inspection and approvals not all completed. */
+export function isStalledPermit(lead: PipelineLead): boolean {
+  if (lead.permitState !== "expired_unfinaled") return false;
+  return lead.isStalled ?? lead.approvalsComplete !== true;
+}
+
+/**
+ * The rows the Prospect page shows for a permit-state filter. "Any" keeps every row (aged roofs
+ * and permits). "Open" or "Stalled" keep only rows from the permit search whose permit is in that
+ * state: an aged roof stays only when its permit matches too, so a work-approved expired permit
+ * never appears under "Stalled".
+ */
+export function visibleResults(rows: ResultRow[], permitState: Filters["permitState"]): ResultRow[] {
+  if (permitState === "any") return rows;
+  return rows.filter((r) => {
+    const fromPermitSearch = r.signals.has("open_permit") || r.signals.has("stalled_permit");
+    if (!fromPermitSearch) return false;
+    return permitState === "open" ? r.lead.permitState === "open" : isStalledPermit(r.lead);
+  });
+}
+
 export function searchReducer(state: SearchState, action: SearchAction): SearchState {
   switch (action.type) {
     case "setPin":
@@ -164,8 +185,11 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
         ...state,
         loading: false,
         error: null,
-        results: mergeResults(action.aged, action.open),
-        capped: action.aged.items.length >= SEARCH_LIMIT || action.open.items.length >= SEARCH_LIMIT,
+        results: visibleResults(mergeResults(action.aged, action.open), state.filters.permitState),
+        // With a state filter only permit-search rows are shown, so only that search can be capped.
+        capped:
+          action.open.items.length >= SEARCH_LIMIT ||
+          (state.filters.permitState === "any" && action.aged.items.length >= SEARCH_LIMIT),
         snapshot: action.aged.snapshot ?? action.open.snapshot,
       };
     case "searchFailed":

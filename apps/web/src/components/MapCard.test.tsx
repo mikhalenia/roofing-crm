@@ -27,4 +27,13 @@ describe("MapCard", () => {
       "1 matching property in this radius · 401 markers in view, zoom in for detail",
     );
   });
+
+  it("uses permit wording when a state filter is active", () => {
+    expect(statusCaption({ total: 3, capped: false, inView: 3, permitState: "expired_unfinaled" })).toBe("3 stalled permits shown in this radius");
+    expect(statusCaption({ total: 1, capped: false, inView: 1, permitState: "expired_unfinaled" })).toBe("1 stalled permit shown in this radius");
+    expect(statusCaption({ total: 417, capped: true, inView: 300, permitState: "open" })).toBe(
+      "417 open permits shown · each search returns at most 200 records per signal, so more match in this radius",
+    );
+    expect(statusCaption({ total: 395, capped: true, inView: 300, permitState: "any" })).toMatch(/^395 properties shown/);
+  });
 });

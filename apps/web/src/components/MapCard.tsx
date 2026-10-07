@@ -12,6 +12,8 @@ interface Props {
   total: number;
   /** A search hit the fetch limit, so `total` is a lower bound. */
   capped: boolean;
+  /** The permit-state filter; "open" and "expired_unfinaled" switch the caption to permit wording. */
+  permitState?: "open" | "expired_unfinaled" | "any";
   /** Result markers inside the visible map bounds. */
   inView: number;
   loading: boolean;
@@ -20,11 +22,25 @@ interface Props {
   children: ReactNode;
 }
 
+const STATE_NOUN: Record<string, [string, string]> = {
+  open: ["open permit", "open permits"],
+  expired_unfinaled: ["stalled permit", "stalled permits"],
+};
+
 /** What the map shows and, when a search hit its fetch limit, that more match. */
-export function statusCaption({ total, capped, inView }: Pick<Props, "total" | "capped" | "inView">): string {
-  const shown = capped
-    ? `${formatCount(total)} properties shown · each search returns at most ${SEARCH_LIMIT} records per signal, so more match in this radius`
-    : `${formatCount(total)} matching ${total === 1 ? "property" : "properties"} in this radius`;
+export function statusCaption({
+  total,
+  capped,
+  inView,
+  permitState = "any",
+}: Pick<Props, "total" | "capped" | "inView" | "permitState">): string {
+  const noun = STATE_NOUN[permitState];
+  const count = formatCount(total);
+  const shown = noun
+    ? `${count} ${total === 1 ? noun[0] : noun[1]} shown${capped ? ` · each search returns at most ${SEARCH_LIMIT} records per signal, so more match in this radius` : " in this radius"}`
+    : capped
+      ? `${count} properties shown · each search returns at most ${SEARCH_LIMIT} records per signal, so more match in this radius`
+      : `${count} matching ${total === 1 ? "property" : "properties"} in this radius`;
   return inView > DENSE_MARKERS ? `${shown} · ${formatCount(inView)} markers in view, zoom in for detail` : shown;
 }
 

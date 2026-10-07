@@ -45,6 +45,7 @@ export function ProspectPage() {
           pin={state.pin}
           total={state.results.length}
           capped={state.capped}
+          permitState={state.filters.permitState}
           inView={inView}
           loading={state.loading}
           agentOpen={agent.open}

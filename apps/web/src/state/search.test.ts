@@ -218,3 +218,41 @@ describe("stale responses", () => {
     expect(searchReducer(started, { type: "searchFailed", error: "pin" }).error).toBe("pin");
   });
 });
+
+describe("permit-state filter on the shown results", () => {
+  // aged + work-approved, aged + stalled, open only, stalled only
+  const agedApproved = lead("AGED-APPROVED", { roofAgeYears: 23, permitState: "expired_unfinaled", approvalsComplete: true, isStalled: false });
+  const agedStalled = lead("AGED-STALLED", { roofAgeYears: 22, permitState: "expired_unfinaled", approvalsComplete: false, isStalled: true });
+  const openOnly = lead("OPEN", { permitState: "open", daysOpen: 400 });
+  const stalledOnly = lead("STALLED", { permitState: "expired_unfinaled", approvalsComplete: false, isStalled: true, daysOpen: 9000 });
+  const aged = { snapshot, items: [agedApproved, agedStalled] };
+
+  const run = (permitState: "any" | "open" | "expired_unfinaled", open: PipelineLead[]) => {
+    const s = searchReducer(initialState, { type: "setFilters", filters: { permitState } });
+    return searchReducer(s, { type: "searchSucceeded", aged, open: { snapshot, items: open } }).results.map((r) => r.lead.apn).sort();
+  };
+
+  it("Any keeps aged roofs and permits", () => {
+    expect(run("any", [agedStalled, openOnly, stalledOnly])).toEqual(["AGED-APPROVED", "AGED-STALLED", "OPEN", "STALLED"]);
+  });
+
+  it("Stalled keeps only stalled permits; a work-approved aged roof is hidden", () => {
+    expect(run("expired_unfinaled", [agedStalled, stalledOnly])).toEqual(["AGED-STALLED", "STALLED"]);
+  });
+
+  it("Open keeps only open permits", () => {
+    expect(run("open", [openOnly])).toEqual(["OPEN"]);
+  });
+
+  it("drops a work-approved expired permit even if the permit search returned it", () => {
+    expect(run("expired_unfinaled", [agedApproved, stalledOnly])).toEqual(["STALLED"]);
+  });
+
+  it("with a state filter only the permit search can cap the results", () => {
+    const many = Array.from({ length: 200 }, (_, i) => lead(`A${i}`, { roofAgeYears: 20 }));
+    const s = searchReducer(initialState, { type: "setFilters", filters: { permitState: "open" } });
+    const out = searchReducer(s, { type: "searchSucceeded", aged: { snapshot, items: many }, open: { snapshot, items: [openOnly] } });
+    expect(out.capped).toBe(false);
+    expect(out.results).toHaveLength(1);
+  });
+});
