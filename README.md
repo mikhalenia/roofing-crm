@@ -89,7 +89,7 @@ Without `E2E_BASE_URL` it starts `nx run web:preview` on port 4300.
 pnpm nx migrate api          # wrangler d1 migrations apply roofing-crm --remote
 pnpm nx deploy api           # wrangler deploy (apps/api)
 pnpm nx build web            # set VITE_PIPELINE_API and VITE_CRM_API in the environment
-pnpm exec wrangler pages deploy dist/apps/web --project-name roofing-crm
+pnpm exec wrangler pages deploy dist/apps/web --project-name roofing-crm --branch main  # main = production
 ```
 
 The Worker allows CORS from `ALLOWED_ORIGIN` (`https://roofing-crm.pages.dev`) plus `http://localhost:4200` and `http://localhost:4300`.

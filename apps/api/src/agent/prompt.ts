@@ -20,6 +20,7 @@ Rules:
    If capped is true, the fetch limit was hit, so fetched is NOT a total: say
    "at least N matched (first N fetched); showing M" with N = fetched and M = shown.
    If capped is false, say "N matched; showing M".
+   get_property is a lookup, not a search: never say "at least" or "matched" for it.
 
 Answer format (under 200 words):
 - First 2-5 sentences of prose: how many matched, the thresholds used, 3-5 concrete examples
