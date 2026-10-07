@@ -30,7 +30,13 @@ describe("labels", () => {
     expect(permitStateLabel("finaled")).toBe("Completed");
     expect(permitStateLabel(null)).toBe("No permit");
     expect(permitStateLabel("weird")).toBe("Unknown state");
-    expect(permitStateHint("expired_unfinaled")).toBe("Permit expired without a final inspection");
+    expect(permitStateHint("expired_unfinaled")).toBe("Permit expired without a final inspection or completed approvals");
+    expect(permitStateLabel("expired_unfinaled", true)).toBe("Expired (work approved)");
+    expect(permitStateLabel("expired_unfinaled", false)).toBe("Stalled");
+    expect(permitStateText("expired_unfinaled", null, true)).toBe(
+      "Expired (work approved): expired without a final inspection, but all approvals were completed (not counted as stalled)",
+    );
+    expect(hoverLines(lead({ permitState: "expired_unfinaled", approvalsComplete: true }))[2]).toBe("Expired (work approved)");
     expect(permitStateText("expired_unfinaled")).toBe("Stalled (permit expired without a final inspection)");
     expect(permitStateText("expired_unfinaled", "Stalled (expired without a final inspection)")).toBe("Stalled (expired without a final inspection)");
     expect(roofBasisLabel("final_date", "API basis")).toBe("API basis");
@@ -43,7 +49,7 @@ describe("labels", () => {
     expect(confidenceLabel("high")).toBe("high confidence");
     expect(confidenceLabel("medium")).toBe("estimated");
     expect(["new", "contacted", "qualified", "lost"].map(leadStatusLabel)).toEqual(["New", "Contacted", "Qualified", "Lost"]);
-    expect(["aged_roof", "open_permit", "stalled_permit"].map(signalLabel)).toEqual(["Aged roof", "Open permit", "Stalled permit"]);
+    expect(["aged_roof", "open_permit", "stalled_permit"].map(signalLabel)).toEqual(["Aged roof", "Open permit", "Stalled permit (expired, no approvals)"]);
     expect(
       ["find_aged_roofs", "find_open_roofing_permits", "search_properties_in_radius", "get_property", "geocode_place", "create_lead"].map(toolLabel),
     ).toEqual(["Searched aged roofs", "Searched roofing permits", "Searched properties", "Looked up a property", "Located a place", "Saved a lead"]);
@@ -75,14 +81,14 @@ describe("labels", () => {
 
   it("strips the SOURCES line and raw tokens from agent prose", () => {
     expect(displayAnswer("Permit 1 is expired_unfinaled, roof by final_date.\nSOURCES: 47223005, 47223006")).toBe(
-      "Permit 1 is stalled, roof by final inspection date.",
+      "Permit 1 is expired without a final inspection, roof by final inspection date.",
     );
     expect(displayAnswer("No sources here.")).toBe("No sources here.");
     expect(displayAnswer("Two roofs match.\nSources: County of Santa Clara parcels.")).toBe(
       "Two roofs match.\nSources: County of Santa Clara parcels.",
     );
     expect(displayAnswer("They have expired, unfinaled permits.\nSOURCES: A1")).toBe(
-      "They have stalled (expired without a final inspection) permits.",
+      "They have expired without a final inspection permits.",
     );
   });
 

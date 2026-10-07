@@ -15,7 +15,7 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
   const known = isKnown(l.apn);
   const noCoords = !Number.isFinite(l.lat) || !Number.isFinite(l.lon);
   const permit = l.permitNumber
-    ? `Permit ${l.permitNumber}: ${permitStateText(l.permitState, l.permitStateLabel)}`
+    ? `Permit ${l.permitNumber}: ${permitStateText(l.permitState, l.permitStateLabel, l.approvalsComplete)}`
     : "No permit on record";
   return (
     <Box sx={{ minWidth: 240, maxWidth: 300 }} role="group" aria-label={`Property ${l.situsAddress ?? l.apn}`}>

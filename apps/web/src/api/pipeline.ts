@@ -39,6 +39,7 @@ export const PropertyDetail = z.looseObject({
       status: str,
       permitState: str,
       permitStateLabel: str,
+      approvalsComplete: z.boolean().nullish(),
       isRoofing: z.boolean().nullish(),
       workDescription: str,
       subtype: str,

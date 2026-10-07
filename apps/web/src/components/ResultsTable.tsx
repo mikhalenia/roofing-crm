@@ -142,8 +142,8 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             <TableCell>{l.permitNumber ?? "-"}</TableCell>
             <TableCell>
               {l.permitState ? (
-                <Tooltip title={l.permitStateLabel || permitStateHint(l.permitState)}>
-                  <span>{permitStateLabel(l.permitState)}</span>
+                <Tooltip title={l.permitStateLabel || permitStateHint(l.permitState, l.approvalsComplete)}>
+                  <span>{permitStateLabel(l.permitState, l.approvalsComplete)}</span>
                 </Tooltip>
               ) : (
                 "-"

@@ -24,7 +24,7 @@ describe("AgentAnswer", () => {
   it("strips the SOURCES line and raw tokens from the prose", () => {
     setup();
     const answer = screen.getByTestId("agent-answer");
-    expect(answer).toHaveTextContent("At least 200 roofs match; 25 shown. Permit P-1 is stalled.");
+    expect(answer).toHaveTextContent("At least 200 roofs match; 25 shown. Permit P-1 is expired without a final inspection.");
     expect(answer).not.toHaveTextContent("SOURCES");
   });
 

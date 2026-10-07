@@ -4,8 +4,8 @@
  */
 import {
   CONFIDENCE_LABELS,
-  PERMIT_STATE_HINTS,
-  PERMIT_STATE_LABELS,
+  permitStateMeaning,
+  permitStateShort,
   ROOF_BASIS_LABELS,
   SIGNAL_LABELS,
   replaceRawTokens,
@@ -13,8 +13,6 @@ import {
   type PipelineLead,
 } from "@crm/contracts";
 
-const PERMIT_STATE = PERMIT_STATE_LABELS;
-const PERMIT_HINT = PERMIT_STATE_HINTS;
 const ROOF_BASIS = ROOF_BASIS_LABELS;
 const CONFIDENCE = CONFIDENCE_LABELS;
 const LEAD_STATUS: Record<string, string> = { new: "New", contacted: "Contacted", qualified: "Qualified", lost: "Lost" };
@@ -31,17 +29,29 @@ const TOOL: Record<string, string> = {
 const pick = (map: Record<string, string>, v: string | null | undefined, fallback: string) =>
   (v ? map[v] : undefined) ?? fallback;
 
-/** "Open", "Stalled", "Completed"; "No permit" when empty. */
-export const permitStateLabel = (s: string | null | undefined) => (s ? pick(PERMIT_STATE, s, "Unknown state") : "No permit");
+type Approvals = boolean | null | undefined;
+
+/**
+ * "Open", "Stalled", "Expired (work approved)", "Completed"; "No permit" when empty. An expired
+ * permit whose approvals were all completed is not stalled (`approvalsComplete`).
+ */
+export const permitStateLabel = (s: string | null | undefined, approvalsComplete?: Approvals) =>
+  s ? (permitStateShort(s, approvalsComplete) ?? "Unknown state") : "No permit";
 /** One-sentence meaning of a permit state, for tooltips and secondary text. */
-export const permitStateHint = (s: string | null | undefined) => pick(PERMIT_HINT, s, "");
+export const permitStateHint = (s: string | null | undefined, approvalsComplete?: Approvals) =>
+  permitStateMeaning(s, approvalsComplete) ?? "";
 /**
  * Long form, "Stalled (permit expired without a final inspection)". The pipeline API's own
  * label wins when present (`apiLabel`); the local mapping is the fallback.
  */
-export const permitStateText = (s: string | null | undefined, apiLabel?: string | null) =>
-  apiLabel ||
-  (s === "expired_unfinaled" ? `${permitStateLabel(s)} (permit expired without a final inspection)` : permitStateLabel(s));
+export const permitStateText = (s: string | null | undefined, apiLabel?: string | null, approvalsComplete?: Approvals) => {
+  if (apiLabel) return apiLabel;
+  if (s === "expired_unfinaled")
+    return approvalsComplete === true
+      ? `${permitStateLabel(s, true)}: ${permitStateHint(s, true).toLowerCase()}`
+      : `${permitStateLabel(s)} (permit expired without a final inspection)`;
+  return permitStateLabel(s);
+};
 
 export const roofBasisLabel = (anchor: string | null | undefined, apiLabel?: string | null) =>
   apiLabel || pick(ROOF_BASIS, anchor, "unknown basis");
@@ -94,7 +104,7 @@ export function hoverLines(l: PipelineLead): [string, string, string] {
     l.roofAgeYears != null
       ? `Roof ${l.roofAgeYears} yrs${l.roofAgeConfidence ? ` (${confidenceLabel(l.roofAgeConfidence, l.roofAgeConfidenceLabel)})` : ""}`
       : "Roof age unknown";
-  const state = permitStateLabel(l.permitState);
+  const state = permitStateLabel(l.permitState, l.approvalsComplete);
   const permit = l.daysOpen != null ? `${state} · open ${durationText(l.daysOpen)}` : state;
   return [l.situsAddress ?? l.apn, roof, permit];
 }

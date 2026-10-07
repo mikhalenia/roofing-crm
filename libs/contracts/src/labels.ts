@@ -16,6 +16,33 @@ export const PERMIT_STATE_HINTS: Readonly<Record<string, string>> = {
   finaled: 'Permit passed its final inspection',
 };
 
+/**
+ * An expired permit whose approvals were all completed is not stalled: the work was approved,
+ * only the final inspection is missing. The pipeline's stalled filter excludes it too.
+ */
+const isApprovedExpired = (state: string | null | undefined, approvalsComplete: boolean | null | undefined) =>
+  state === 'expired_unfinaled' && approvalsComplete === true;
+
+/** Short name for a permit state: "Open", "Stalled", "Expired (work approved)", "Completed". */
+export function permitStateShort(
+  state: string | null | undefined,
+  approvalsComplete?: boolean | null,
+): string | undefined {
+  if (isApprovedExpired(state, approvalsComplete)) return 'Expired (work approved)';
+  return state ? PERMIT_STATE_LABELS[state] : undefined;
+}
+
+/** One-sentence meaning of a permit state. */
+export function permitStateMeaning(
+  state: string | null | undefined,
+  approvalsComplete?: boolean | null,
+): string | undefined {
+  if (isApprovedExpired(state, approvalsComplete))
+    return 'Expired without a final inspection, but all approvals were completed (not counted as stalled)';
+  if (state === 'expired_unfinaled') return 'Permit expired without a final inspection or completed approvals';
+  return state ? PERMIT_STATE_HINTS[state] : undefined;
+}
+
 export const ROOF_BASIS_LABELS: Readonly<Record<string, string>> = {
   final_date: 'final inspection date',
   approval_complete_issue_date: 'approval completed (issue date)',
@@ -29,7 +56,7 @@ export const CONFIDENCE_LABELS: Readonly<Record<string, string>> = {
 export const SIGNAL_LABELS: Readonly<Record<string, string>> = {
   aged_roof: 'Aged roof',
   open_permit: 'Open permit',
-  stalled_permit: 'Stalled permit',
+  stalled_permit: 'Stalled permit (expired, no approvals)',
 };
 
 const q = `["'\`]?`;
@@ -37,13 +64,14 @@ const token = (t: string) => new RegExp(`${q}\\b${t}\\b${q}`, 'g');
 
 /** Raw tokens (and the model's jargon for them) with the prose that replaces them, in order. */
 export const RAW_TOKEN_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
-  [token('expired_unfinaled'), 'stalled'],
-  [/\bexpired,?\s+unfinaled\b|\bunfinaled\b/gi, 'stalled (expired without a final inspection)'],
+  [token('expired_unfinaled'), 'expired without a final inspection'],
+  [/\bexpired,?\s+unfinaled\b|\bunfinaled\b/gi, 'expired without a final inspection'],
   [token('approval_complete_issue_date'), ROOF_BASIS_LABELS['approval_complete_issue_date']!],
   [token('final_date'), ROOF_BASIS_LABELS['final_date']!],
   [token('aged_roof'), 'aged roof'],
   [token('open_permit'), 'open permit'],
   [token('stalled_permit'), 'stalled permit'],
+  [token('approvalsComplete'), 'approvals completed'],
   [token('finaled'), 'completed'],
 ];
 

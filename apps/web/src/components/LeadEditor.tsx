@@ -53,7 +53,7 @@ function EditorBody({ lead, onClose, onSave, onShowOnMap }: Omit<Props, "lead"> 
       <Box>
         <Typography variant="body2">{roofAgeText(s)}</Typography>
         <Typography variant="body2">
-          {s.permitNumber ? `Permit ${s.permitNumber}: ${permitStateText(s.permitState, s.permitStateLabel)}` : "No permit on record"}
+          {s.permitNumber ? `Permit ${s.permitNumber}: ${permitStateText(s.permitState, s.permitStateLabel, s.approvalsComplete)}` : "No permit on record"}
         </Typography>
         {s.daysOpen != null && (
           <Typography variant="body2" title={daysText(s.daysOpen)}>Open {durationText(s.daysOpen)}</Typography>

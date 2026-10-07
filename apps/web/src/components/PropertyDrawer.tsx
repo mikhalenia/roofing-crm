@@ -199,7 +199,7 @@ export function PropertyDrawer({
                 <Typography key={pm.permitNumber} variant="body2" sx={{ mb: 0.5 }}>
                   {[
                     pm.permitNumber,
-                    permitStateText(pm.permitState, pm.permitStateLabel),
+                    permitStateText(pm.permitState, pm.permitStateLabel, pm.approvalsComplete),
                     pm.issueDate && `issued ${friendlyDate(pm.issueDate) ?? pm.issueDate}`,
                     pm.finalDate && `completed ${friendlyDate(pm.finalDate) ?? pm.finalDate}`,
                     pm.daysOpen != null && `open ${durationText(pm.daysOpen)}`,

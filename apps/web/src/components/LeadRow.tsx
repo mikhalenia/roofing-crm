@@ -60,8 +60,8 @@ export function LeadRow({ lead, onStatus, onEdit, onDelete, onShowOnMap, justSav
       <TableCell>{s.roofAgeYears != null ? `${s.roofAgeYears} yrs` : "-"}</TableCell>
       <TableCell>
         {s.permitState ? (
-          <Tooltip title={s.permitStateLabel || permitStateHint(s.permitState)}>
-            <span>{permitStateLabel(s.permitState)}</span>
+          <Tooltip title={s.permitStateLabel || permitStateHint(s.permitState, s.approvalsComplete)}>
+            <span>{permitStateLabel(s.permitState, s.approvalsComplete)}</span>
           </Tooltip>
         ) : (
           "-"

@@ -18,6 +18,8 @@ export const PipelineLead = z.looseObject({
   permitState: z.enum(['open', 'expired_unfinaled', 'finaled']).nullish(),
   // Display labels from the pipeline API; the web app falls back to its own mapping.
   permitStateLabel: str,
+  // expired_unfinaled with every approval completed is "Expired (work approved)", not stalled.
+  approvalsComplete: z.boolean().nullish(),
   roofAgeBasisLabel: str,
   roofAgeConfidenceLabel: str,
   daysOpen: z.number().nullish(),

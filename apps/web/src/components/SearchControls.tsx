@@ -96,7 +96,7 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
             onChange={(permitState) => onFilters({ permitState })}
             options={[
               { value: "open", label: "Open", hint: "Open = permit still active" },
-              { value: "expired_unfinaled", label: "Stalled", hint: "Stalled = expired without a final inspection" },
+              { value: "expired_unfinaled", label: "Stalled", hint: "Stalled = expired without a final inspection or completed approvals" },
               { value: "any", label: "Any", hint: "Any = open or stalled" },
             ]}
           />
