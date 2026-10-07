@@ -138,6 +138,8 @@ describe("buildTools", () => {
       roofAgeAnchor: "final_date",
       permitNumber: "P-A-0",
       permitState: "expired_unfinaled",
+      isStalled: true,
+      permitStateLabel: null,
       approvalsComplete: null,
       daysOpen: 900,
       contractorCompany: "Acme Roofing",
@@ -223,12 +225,41 @@ describe("search tool input checks", () => {
     expect(invalidArea({ lat: 37.3, lon: -181 })).toContain(INVALID_COORDINATES);
   });
 
-  it("turns a pipeline 400 (point outside the county) into a readable error", async () => {
-    const tools = buildTools("https://pipeline.test", stubFetch([], 400).fn, leadStore());
-    expect(await exec(tools.find_aged_roofs, { lat: 37, lon: -121 })).toMatchObject({
+  const reject400 = (issues: unknown[]) =>
+    (async () =>
+      new Response(JSON.stringify({ error: "invalid request", issues }), { status: 400 })) as unknown as typeof fetch;
+
+  it("passes the pipeline's 400 reason through, pointing at geocoding only for a location problem", async () => {
+    const where = buildTools(
+      "https://pipeline.test",
+      reject400([{ path: ["lon"], message: "Too big: expected number to be <=-121.2" }]),
+      leadStore(),
+    );
+    expect(await exec(where.find_aged_roofs, { lat: 37, lon: -121 })).toMatchObject({
       count: 0,
-      error: `${INVALID_COORDINATES}: the point is outside Santa Clara County`,
+      error: `${INVALID_COORDINATES}: lon: Too big: expected number to be <=-121.2`,
     });
+    const other = buildTools(
+      "https://pipeline.test",
+      reject400([{ path: ["state"], message: "Invalid option" }]),
+      leadStore(),
+    );
+    expect(await exec(other.find_open_roofing_permits, { lat: 37.3, lon: -121.9, state: "open" })).toMatchObject({
+      error: "the pipeline rejected the search: state: Invalid option",
+    });
+  });
+
+  it("rejects a non-numeric radius instead of searching at the default", async () => {
+    const { fn, urls } = stubFetch([]);
+    const tools = buildTools("https://pipeline.test", fn, leadStore());
+    const schema = (tools.find_aged_roofs as unknown as { inputSchema: { parse: (v: unknown) => Record<string, unknown> } }).inputSchema;
+    const parsed = schema.parse({ lat: 37.3, lon: -121.9, radiusMiles: "five" });
+    expect(parsed["radiusMiles"]).toBe("five");
+    expect(await exec(tools.find_aged_roofs, parsed)).toMatchObject({ error: "invalid radius five; use 0.1 to 50 miles" });
+    expect(await exec(tools.find_aged_roofs, { lat: 37.3, lon: -121.9, radiusMiles: { n: 5 } })).toMatchObject({
+      error: 'invalid radius {"n":5}; use 0.1 to 50 miles',
+    });
+    expect(urls).toHaveLength(0);
   });
 });
 
@@ -277,6 +308,62 @@ describe("runAgent", () => {
     );
   });
 
+  it("grounds a capped answer about work-approved permits: counts, stalled wording and sources", async () => {
+    const items = Array.from({ length: 200 }, (_, i) =>
+      pipelineLead(`R-${i}`, { isStalled: false, approvalsComplete: true, permitStateLabel: "Expired (work approved, no final inspection)" }),
+    );
+    const gen = scripted(
+      [{ toolName: "find_aged_roofs", input: AGED }],
+      "At least 25 roofs have stalled permits, including R-0 Main St and R-1 Main St. Roof age 22 years.\nSOURCES:",
+    );
+    const res = await runAgent(
+      env,
+      { question: "Old roofs with stalled permits?", context: { lat: 37.3382, lon: -121.8863, radiusMiles: 5 } },
+      { generateText: gen.fn, fetch: stubFetch(items).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.toolCalls[0]).toMatchObject({ resultCount: 200, capped: true, shown: 25 });
+    expect(res.answer).toContain("At least 200 roofs have permits that expired after all approvals were completed");
+    expect(res.answer).toMatch(/\nSOURCES: R-0, R-1$/);
+    expect(res.sources.map((s) => s.apn)).toEqual(["R-0", "R-1"]);
+  });
+
+  it("says near <place> when the records are in another city", async () => {
+    const items = [pipelineLead("C-1", { situsCity: "SAN JOSE", isStalled: true })];
+    const gen = scripted(
+      [
+        { toolName: "geocode_place", input: { name: "Campbell" } },
+        { toolName: "find_open_roofing_permits", input: { lat: 37.2872, lon: -121.95, radiusMiles: 5 } },
+      ],
+      "1 open roofing permit in Campbell: C-1 Main St (C-1). It is stalled.\nSOURCES: C-1",
+    );
+    const res = await runAgent(
+      env,
+      { question: "Open roofing permits in Campbell?", context: null },
+      { generateText: gen.fn, fetch: stubFetch(items).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.answer).toContain("1 open roofing permit near Campbell (records are in San Jose)");
+    expect(res.answer).toContain("It is stalled.");
+  });
+
+  it("passes the pipeline's stalled verdict and label to the model", async () => {
+    const tools = buildTools(
+      "https://pipeline.test",
+      stubFetch([
+        pipelineLead("S", { isStalled: true }),
+        pipelineLead("W", { isStalled: false, approvalsComplete: true, permitStateLabel: "Expired (work approved, no final inspection)" }),
+        pipelineLead("D", { isStalled: undefined, approvalsComplete: true }),
+      ]).fn,
+      leadStore(),
+    );
+    const out = (await exec(tools.find_aged_roofs, AGED)) as { stalledShown: number; items: Record<string, unknown>[] };
+    expect(out.stalledShown).toBe(1);
+    expect(out.items.map((i) => [i["apn"], i["isStalled"], i["permitStateLabel"]])).toEqual([
+      ["S", true, null],
+      ["W", false, "Expired (work approved, no final inspection)"],
+      ["D", false, null],
+    ]);
+  });
+
   it("tells the model about out-of-scope replies, geocoding first, radius wording and approved expired permits", async () => {
     const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
     await runAgent(
@@ -289,7 +376,10 @@ describe("runAgent", () => {
     expect(system).toMatch(/never a nested call/);
     expect(system).toMatch(/within N miles of\s+<place>", never "in <place>"/);
     expect(system).toMatch(/never write "at least"/);
-    expect(system).toContain('"Expired (work approved)"');
+    expect(system).toMatch(/Call a permit "stalled" ONLY when its isStalled field is true/);
+    expect(system).toMatch(/never write "at least 25" when 200 were fetched/);
+    expect(system).toMatch(/near <place> \(records are in <city>\)/);
+    expect(system).toMatch(/must not be\s+empty whenever you describe any returned record/);
   });
 
   it("returns sources only for returned identifiers, counts, and resolved filters", async () => {
@@ -375,7 +465,7 @@ describe("runAgent", () => {
     ).toBe(
       "final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, expired without a final inspection",
     );
-    expect(plainStates("expired, unfinaled permits")).toBe("expired without a final inspection permits");
+    expect(plainStates("expired, unfinaled permits")).toBe("permits that expired without a final inspection");
   });
 
   it("reports capped and shown for search tool calls", async () => {

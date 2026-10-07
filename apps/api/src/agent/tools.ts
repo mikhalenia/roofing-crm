@@ -27,7 +27,10 @@ export function trimLead(l: PipelineLead) {
     roofAgeAnchor: l.roofAgeAnchor ?? null,
     permitNumber: l.permitNumber ?? null,
     permitState: l.permitState ?? null,
-    // expired_unfinaled + approvalsComplete true = "Expired (work approved)", not stalled.
+    // The pipeline's verdict and label: only isStalled true may be called "stalled";
+    // expired_unfinaled with approvals complete is "Expired (work approved)".
+    isStalled: l.isStalled ?? (l.permitState === "expired_unfinaled" ? l.approvalsComplete !== true : false),
+    permitStateLabel: l.permitStateLabel ?? null,
     approvalsComplete: l.approvalsComplete ?? null,
     daysOpen: l.daysOpen ?? null,
     contractorCompany: l.contractorCompany ?? null,
@@ -64,7 +67,10 @@ const looseNum = () => z.preprocess(loose, z.number().nullable());
 
 const lat = looseNum().describe("Latitude of the search center from geocode_place or the map (Santa Clara County, about 37.0-37.5)");
 const lon = looseNum().describe("Longitude of the search center from geocode_place or the map (about -122.3 to -121.2)");
-const radiusMiles = looseNum().optional().describe("Search radius in miles, 0.1-50, default 5");
+// A bad radius is kept as given (not turned into null), so invalidArea can report it.
+const radiusMiles = z
+  .preprocess((v) => (v == null ? undefined : (loose(v) ?? (typeof v === "string" ? v : JSON.stringify(v)))), z.union([z.number(), z.string()]).optional())
+  .describe("Search radius in miles, 0.1-50, default 5");
 
 export const INVALID_COORDINATES = "invalid coordinates; call geocode_place first";
 
@@ -78,12 +84,37 @@ export function invalidArea(a: { lat: unknown; lon: unknown; radiusMiles?: unkno
   }
   const r = a.radiusMiles == null ? null : loose(a.radiusMiles);
   if (a.radiusMiles != null && (r == null || r < 0.1 || r > 50)) {
-    return `invalid radius ${String(a.radiusMiles)}; use 0.1 to 50 miles`;
+    const shown = typeof a.radiusMiles === "object" ? JSON.stringify(a.radiusMiles) : String(a.radiusMiles);
+    return `invalid radius ${shown}; use 0.1 to 50 miles`;
   }
   return null;
 }
 
 const limit = num().int().min(1).max(500).optional().describe("Max records to fetch, default 200");
+
+/** A non-2xx pipeline response, with the pipeline's own explanation. */
+export class PipelineHttpError extends Error {
+  constructor(
+    readonly status: number,
+    path: string,
+    readonly detail: string,
+  ) {
+    super(`pipeline API ${status} for ${path}${detail ? `: ${detail}` : ""}`);
+  }
+}
+
+/** "lon: Too big: expected number to be <=-121.2" from a pipeline error body, or "". */
+async function pipelineMessage(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: unknown; issues?: { path?: unknown[]; message?: unknown }[] };
+    const issues = (body.issues ?? [])
+      .map((i) => `${(i.path ?? []).join(".")}: ${String(i.message ?? "")}`.replace(/^: /, ""))
+      .filter(Boolean);
+    return issues.length ? issues.join("; ") : typeof body.error === "string" ? body.error : "";
+  } catch {
+    return "";
+  }
+}
 
 export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore: LeadStore) {
   /** Full records returned during this run, so create_lead can snapshot them. */
@@ -97,7 +128,7 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
     for (const [k, v] of Object.entries(params))
       if (v !== undefined) url.searchParams.set(k, String(v));
     const res = await fetcher(url.toString(), { headers: { accept: "application/json" } });
-    if (!res.ok) throw new Error(`pipeline API ${res.status} for ${url.pathname}`);
+    if (!res.ok) throw new PipelineHttpError(res.status, url.pathname, await pipelineMessage(res));
     return (await res.json()) as unknown;
   }
 
@@ -111,9 +142,16 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
     try {
       raw = await getJson(path, params as Record<string, string | number | boolean | undefined>);
     } catch (e) {
-      // The pipeline answers 400 for a point outside Santa Clara County.
-      if (e instanceof Error && / 400 /.test(e.message)) {
-        return { count: 0, fetched: 0, error: `${INVALID_COORDINATES}: the point is outside Santa Clara County` };
+      // A 400 means the pipeline rejected a parameter: pass its reason to the model, and point
+      // at geocoding only when the reason is the location.
+      if (e instanceof PipelineHttpError && e.status === 400) {
+        const where = /\b(lat|lon)\b/.test(e.detail);
+        const reason = e.detail || "invalid request";
+        return {
+          count: 0,
+          fetched: 0,
+          error: where ? `${INVALID_COORDINATES}: ${reason}` : `the pipeline rejected the search: ${reason}`,
+        };
       }
       throw e;
     }
@@ -123,6 +161,7 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
     for (const item of seen) returned.set(item.apn, item);
     const fetched = body.items.length;
     const limit = typeof params["limit"] === "number" ? params["limit"] : DEFAULT_LIMIT;
+    const stalled = seen.filter((i) => trimLead(i).isStalled).length;
     return {
       // `count` is kept for older clients; it equals `fetched`, not the total number of matches.
       count: fetched,
@@ -130,6 +169,8 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
       // The pipeline returned as many records as asked for, so more may match.
       capped: fetched >= limit,
       shown: seen.length,
+      // Among the shown records: how many the pipeline counts as stalled (prompt rule 5).
+      stalledShown: stalled,
       manifestCid: body.snapshot.manifestCid,
       items: seen.map(trimLead),
     };

@@ -20,6 +20,8 @@ export const PipelineLead = z.looseObject({
   permitStateLabel: str,
   // expired_unfinaled with every approval completed is "Expired (work approved)", not stalled.
   approvalsComplete: z.boolean().nullish(),
+  // The pipeline's own verdict: expired without a final inspection AND approvals incomplete.
+  isStalled: z.boolean().nullish(),
   roofAgeBasisLabel: str,
   roofAgeConfidenceLabel: str,
   daysOpen: z.number().nullish(),

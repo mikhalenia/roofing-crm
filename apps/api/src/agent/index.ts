@@ -9,6 +9,7 @@ import {
   resolvedFiltersFromCalls,
   type Source,
 } from "./postfilter";
+import { type Evidence, ensureSources, fixCounts, groundStalled, nearPlace } from "./grounding";
 import { OUT_OF_SCOPE, SYSTEM_PROMPT } from "./prompt";
 import { type AgentTools, buildTools, type LeadStore } from "./tools";
 
@@ -105,20 +106,30 @@ function sourcesOf(call: StepCall, output: unknown, answer: string): Source[] {
 export const OUT_OF_SCOPE_FALLBACK =
   "I can only help with roofing leads in Santa Clara County: aged roofs, roofing permits and contractors near a place, and saving properties as leads.";
 
-const COUNTED = "properties|property|roofs|permits|matches|results|records|homes|parcels|leads";
-
-/**
- * Safety net for prompt rule 9: "at least N <things>" is only true when a search hit its fetch
- * limit. Thresholds ("roofs at least 15 years old") are left alone.
- */
-export function uncapCounts(answer: string, toolCalls: AgentResponse["toolCalls"]): string {
-  if (toolCalls.some((t) => t.capped === true)) return answer;
-  return answer.replace(new RegExp(`\\bat least (\\d[\\d,]*) (${COUNTED})\\b`, "gi"), "$1 $2");
-}
+/** Kept for callers and tests: the count safety net now lives in grounding.ts. */
+export const uncapCounts = fixCounts;
 
 /** Safety net for prompt rule 5: never show a raw pipeline token to a sales user. */
 export function plainStates(text: string): string {
   return replaceRawTokens(text);
+}
+
+/** Adds what one tool call returned to the evidence the safety nets check against. */
+function collectEvidence(evidence: Evidence, call: StepCall, output: unknown): void {
+  const o = (output ?? {}) as { items?: unknown; stalledShown?: unknown; error?: unknown };
+  if (call.toolName === "geocode_place" && !o.error) {
+    const name = (call.input as { name?: unknown } | null)?.name;
+    if (typeof name === "string") evidence.places.push(name);
+  }
+  if (!Array.isArray(o.items)) return;
+  for (const it of o.items as Record<string, unknown>[]) {
+    if (typeof it["city"] === "string") evidence.cities.push(it["city"]);
+  }
+  evidence.shown += o.items.length;
+  evidence.stalledShown +=
+    typeof o.stalledShown === "number"
+      ? o.stalledShown
+      : (o.items as Record<string, unknown>[]).filter((it) => it["isStalled"] !== false).length;
 }
 
 function errorMessage(error: unknown): string {
@@ -194,6 +205,7 @@ export async function runAgent(
   const answer = plainStates(text.trim()) || NO_ANSWER;
   const toolCalls: AgentResponse["toolCalls"] = [];
   const returned: Source[] = [];
+  const evidence: Evidence = { places: [], cities: [], shown: 0, stalledShown: 0 };
   for (const step of result.steps) {
     for (const call of step.toolCalls) {
       const res = step.toolResults.find((r) => r.toolCallId === call.toolCallId);
@@ -222,15 +234,19 @@ export async function runAgent(
         ...(!failed && typeof out.capped === "boolean" ? { capped: out.capped } : {}),
         ...(!failed && typeof out.shown === "number" ? { shown: out.shown } : {}),
       });
-      if (res && !failed) returned.push(...sourcesOf(call, res.output, answer));
+      if (res && !failed) {
+        returned.push(...sourcesOf(call, res.output, answer));
+        collectEvidence(evidence, call, res.output);
+      }
     }
   }
 
-  const worded = uncapCounts(answer, toolCalls);
+  const worded = nearPlace(groundStalled(fixCounts(answer, toolCalls), evidence), evidence);
+  const cited = ensureSources(worded, extractSources(worded, returned), returned);
   return {
-    answer: worded,
+    answer: cited.answer,
     toolCalls,
-    sources: extractSources(worded, returned),
+    sources: cited.sources,
     resolvedFilters: resolvedFiltersFromCalls(toolCalls),
   };
 }
