@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Portal, Snackbar, Stack, Typography } from "@mui/material";
 import type { PipelineLead } from "@crm/contracts";
 import { formatCount, permitStateLabel, roofAgeText } from "../state/labels";
 import { useLeadSave } from "./useLeadSave";
@@ -40,7 +40,10 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
         <Button size="small" onClick={() => onAsk(l)}>Ask agent</Button>
       </Stack>
       {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
-      <Snackbar open={saved} autoHideDuration={4000} onClose={clearSaved} message="Saved as lead" />
+      {/* Leaflet popups are transformed, which would trap a fixed Snackbar inside the popup. */}
+      <Portal>
+        <Snackbar open={saved} autoHideDuration={4000} onClose={clearSaved} message="Saved as lead" />
+      </Portal>
     </Box>
   );
 }
