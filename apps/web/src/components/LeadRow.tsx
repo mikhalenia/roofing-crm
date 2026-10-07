@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { IconButton, MenuItem, Select, TableCell, TableRow, TextField } from "@mui/material";
+import { Button, IconButton, MenuItem, Select, TableCell, TableRow, TextField } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { LeadStatus, type LeadRecord } from "@crm/contracts";
 
@@ -10,9 +10,10 @@ interface Props {
   onStatus: (apn: string, status: LeadStatus) => void;
   onNotes: (apn: string, notes: string) => void;
   onDelete: (lead: LeadRecord) => void;
+  onShowOnMap: (lead: LeadRecord) => void;
 }
 
-export function LeadRow({ lead, onStatus, onNotes, onDelete }: Props) {
+export function LeadRow({ lead, onStatus, onNotes, onDelete, onShowOnMap }: Props) {
   const [notes, setNotes] = useState(lead.notes);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
@@ -67,7 +68,10 @@ export function LeadRow({ lead, onStatus, onNotes, onDelete }: Props) {
       <TableCell>{s.permitState ?? "-"}</TableCell>
       <TableCell>{s.daysOpen ?? "-"}</TableCell>
       <TableCell>{lead.createdAt.slice(0, 10)}</TableCell>
-      <TableCell>
+      <TableCell sx={{ whiteSpace: "nowrap" }}>
+        <Button size="small" aria-label={`Show ${label} on map`} onClick={() => onShowOnMap(lead)}>
+          On map
+        </Button>
         <IconButton aria-label={`Delete ${label}`} onClick={() => onDelete(lead)}>
           <DeleteIcon />
         </IconButton>

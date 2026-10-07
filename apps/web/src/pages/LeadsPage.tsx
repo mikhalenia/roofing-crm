@@ -19,10 +19,12 @@ import { deleteLead, listLeads, updateLead } from "../api/crm";
 import { errorText } from "../api/errors";
 import { LeadFilters, emptyLeadFilter, toLeadFilter } from "../components/LeadFilters";
 import { LeadRow } from "../components/LeadRow";
+import { useNavigate } from "react-router-dom";
 import { useSearch } from "../state/SearchContext";
 
 export function LeadsPage() {
-  const { state } = useSearch();
+  const { state, dispatch } = useSearch();
+  const navigate = useNavigate();
   const [value, setValue] = useState(emptyLeadFilter);
   const [leads, setLeads] = useState<LeadRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +88,11 @@ export function LeadsPage() {
                 onStatus={(apn, status: LeadStatus) => void patch(apn, { status })}
                 onNotes={(apn, notes) => void patch(apn, { notes })}
                 onDelete={setToDelete}
+                onShowOnMap={(l) => {
+                  // The pin stays; the map pans to the lead and opens its popup or drawer.
+                  dispatch({ type: "focusProperty", focus: { apn: l.apn, lat: l.snapshot.lat, lon: l.snapshot.lon } });
+                  navigate("/");
+                }}
               />
             ))}
           </TableBody>

@@ -91,4 +91,22 @@ describe("MapView", () => {
     act(() => (first["eventHandlers"] as { remove: () => void }).remove());
     expect(screen.getByText("popup A2")).toBeInTheDocument();
   });
+
+  it("focus on a result flies to it and opens its popup", () => {
+    const onFocusDone = vi.fn();
+    render(<MapView {...props} focus={{ apn: "A2" }} onFocusDone={onFocusDone} />);
+    expect(h.map.flyTo).toHaveBeenCalledWith([37.32, -121.92], 16);
+    expect(screen.getByTestId("popup")).toHaveAttribute("data-position", "37.32,-121.92");
+    expect(screen.getByText("popup A2")).toBeInTheDocument();
+    expect(h.popups.at(-1)!["autoPan"]).toBe(false);
+    expect(onFocusDone).toHaveBeenCalledWith(true);
+  });
+
+  it("focus on an unknown APN flies to its coordinates without a popup", () => {
+    const onFocusDone = vi.fn();
+    render(<MapView {...props} focus={{ apn: "ZZ", lat: 37.4, lon: -122 }} onFocusDone={onFocusDone} />);
+    expect(h.map.flyTo).toHaveBeenCalledWith([37.4, -122], 16);
+    expect(screen.queryByTestId("popup")).toBeNull();
+    expect(onFocusDone).toHaveBeenCalledWith(false);
+  });
 });

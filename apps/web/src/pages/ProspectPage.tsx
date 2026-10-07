@@ -1,60 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Paper } from "@mui/material";
-import { SearchParams } from "@crm/contracts";
-import { PipelineError, fetchAgedRoofs, fetchHealth, fetchOpenPermits } from "../api/pipeline";
-import { toSearchParams } from "../state/search";
-import { useSearch } from "../state/SearchContext";
+import { useState } from "react";
+import { Box, Button, Drawer, Paper, Stack, useMediaQuery, useTheme } from "@mui/material";
 import { useAgent } from "../state/AgentContext";
-import { useNavigate } from "react-router-dom";
+import { useSearch } from "../state/SearchContext";
+import { AgentPanel } from "../components/AgentPanel";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
 import { SearchControls } from "../components/SearchControls";
 import { SnapshotBanner } from "../components/SnapshotBanner";
+import { useProspectSearch } from "./useProspectSearch";
 
-const message = (e: unknown) =>
-  e instanceof PipelineError || e instanceof Error ? e.message : "Unknown error";
+const AGENT_WIDTH = 380;
 
 export function ProspectPage() {
   const { state, dispatch } = useSearch();
+  const { agent, setOpen, askAbout } = useAgent();
+  const theme = useTheme();
+  const wide = useMediaQuery(theme.breakpoints.up("md"));
   const [selected, setSelected] = useState<string | null>(null);
-  const requestId = useRef(0);
-  const { askAbout } = useAgent();
-  const navigate = useNavigate();
+  const search = useProspectSearch();
 
-  useEffect(() => {
-    fetchHealth().then(
-      (h) => dispatch({ type: "healthLoaded", snapshot: h.snapshot }),
-      (e: unknown) => dispatch({ type: "healthFailed", error: message(e) }),
-    );
-  }, [dispatch]);
-
-  const search = useCallback(() => {
-    const parsed = SearchParams.safeParse(toSearchParams(state));
-    if (!parsed.success) {
-      dispatch({
-        type: "searchFailed",
-        error: "Pin must be inside Santa Clara County; click the map to move it",
-      });
-      return;
-    }
-    const id = ++requestId.current;
-    dispatch({ type: "searchStarted" });
-    Promise.all([fetchAgedRoofs(parsed.data), fetchOpenPermits(parsed.data)]).then(
-      ([aged, open]) => {
-        if (id === requestId.current) dispatch({ type: "searchSucceeded", aged, open });
-      },
-      (e: unknown) => {
-        if (id === requestId.current) dispatch({ type: "searchFailed", error: message(e) });
-      },
-    );
-  }, [state, dispatch]);
-
-  // "Apply to map" on the agent page queues a search; run it once on arrival.
-  useEffect(() => {
-    if (state.pendingSearch) search();
-  }, [state.pendingSearch, search]);
-
+  const panel = <AgentPanel embedded onClose={() => setOpen(false)} />;
+  const focus = state.focus;
   return (
     <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}>
       <Paper sx={{ width: { md: 300 }, flexShrink: 0 }}>
@@ -68,6 +35,15 @@ export function ProspectPage() {
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <SnapshotBanner snapshot={state.snapshot} healthError={state.healthError} searchError={state.error} />
+        <Stack sx={{ flexDirection: "row", justifyContent: "flex-end", mb: 1 }}>
+          <Button
+            variant={agent.open ? "contained" : "outlined"}
+            aria-pressed={agent.open}
+            onClick={() => setOpen(!agent.open)}
+          >
+            Agent
+          </Button>
+        </Stack>
         <Box sx={{ height: 420, mb: 2 }}>
           <MapView
             pin={state.pin}
@@ -76,9 +52,11 @@ export function ProspectPage() {
             rows={state.results}
             onPin={(pin) => dispatch({ type: "setPin", pin })}
             onSelect={setSelected}
-            onAsk={(lead) => {
-              askAbout(lead);
-              navigate("/agent");
+            onAsk={askAbout}
+            focus={focus}
+            onFocusDone={(found) => {
+              if (!found && focus) setSelected(focus.apn);
+              dispatch({ type: "focusDone" });
             }}
           />
         </Box>
@@ -86,6 +64,18 @@ export function ProspectPage() {
           <ResultsTable rows={state.results} capped={state.capped} onSelect={setSelected} selectedApn={selected} />
         </Box>
       </Box>
+      {wide && agent.open && (
+        <Paper
+          sx={{ width: AGENT_WIDTH, flexShrink: 0, p: 2, alignSelf: "flex-start", position: "sticky", top: 80, maxHeight: "calc(100vh - 96px)", overflowY: "auto" }}
+        >
+          {panel}
+        </Paper>
+      )}
+      {!wide && (
+        <Drawer anchor="right" open={agent.open} onClose={() => setOpen(false)}>
+          <Box sx={{ width: { xs: "100vw", sm: AGENT_WIDTH }, p: 2 }}>{panel}</Box>
+        </Drawer>
+      )}
       <PropertyDrawer apn={selected} snapshot={state.results.find((r) => r.lead.apn === selected)?.lead} onClose={() => setSelected(null)} />
     </Box>
   );

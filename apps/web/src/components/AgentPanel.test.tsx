@@ -21,8 +21,19 @@ vi.mock("./PropertyDrawer", () => ({
 }));
 
 function Probe() {
-  const { state } = useSearch();
-  return <div data-testid="probe">{JSON.stringify({ pin: state.pin, r: state.radiusMiles, f: state.filters })}</div>;
+  const { state, dispatch } = useSearch();
+  const seed = () =>
+    dispatch({
+      type: "searchSucceeded",
+      aged: { snapshot: { runId: "r", manifestCid: null, syncedAt: null }, items: [{ apn: "A1", lat: 37.3, lon: -121.9, bbbRating: null, distanceMiles: 1, provenance: { propertySourceUrl: "u", propertySourceVersion: "v", fetchedAt: "t" } }] },
+      open: { snapshot: { runId: "r", manifestCid: null, syncedAt: null }, items: [] },
+    });
+  return (
+    <>
+      <div data-testid="probe">{JSON.stringify({ pin: state.pin, r: state.radiusMiles, f: state.filters, focus: state.focus })}</div>
+      <button type="button" onClick={seed}>seed</button>
+    </>
+  );
 }
 
 function AskAboutButton() {
@@ -143,5 +154,15 @@ describe("AgentPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "ask about" }));
     fireEvent.click(screen.getByText("Save the three oldest roofs near Cupertino as leads"));
     expect(screen.queryByText("About 1 Main St")).toBeNull();
+  });
+
+  it("a source in the current results focuses it on the map", async () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "seed" }));
+    await ask();
+    fireEvent.click(await screen.findByText("1 Main St · BLD-1"));
+    expect(await screen.findByText("prospect page")).toBeInTheDocument();
+    expect(JSON.parse(screen.getByTestId("probe").textContent ?? "{}").focus).toEqual({ apn: "A1" });
+    expect(screen.queryByText("drawer A1")).toBeNull();
   });
 });

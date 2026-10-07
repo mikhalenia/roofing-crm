@@ -22,7 +22,7 @@ vi.mock("react-leaflet", () => ({
   Tooltip: () => null,
   Marker: () => null,
   Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  useMap: () => ({ getBounds: () => ({ contains: () => true }), getZoom: () => 11, setView: () => undefined }),
+  useMap: () => ({ getBounds: () => ({ contains: () => true }), getZoom: () => 11, setView: () => undefined, flyTo: () => undefined }),
   useMapEvents: (h: typeof hoisted.handlers) => {
     hoisted.handlers.click = h.click;
     return null;
@@ -59,6 +59,15 @@ function Wrap({ children }: { children: ReactNode }) {
         <AgentProvider>{children}</AgentProvider>
       </SearchProvider>
     </MemoryRouter>
+  );
+}
+
+function FocusButton({ apn }: { apn: string }) {
+  const { dispatch } = useSearch();
+  return (
+    <button type="button" onClick={() => dispatch({ type: "focusProperty", focus: { apn, lat: 37.4, lon: -122 } })}>
+      focus {apn}
+    </button>
   );
 }
 
@@ -120,5 +129,20 @@ describe("ProspectPage", () => {
     await waitFor(() => expect(screen.getByText(/Pin must be inside Santa Clara County/)).toBeInTheDocument());
     expect(searchCalls()).toBe(before);
     expect(screen.getByText("1 Main St")).toBeInTheDocument();
+  });
+
+  it("the Agent button toggles the agent panel next to the map", async () => {
+    render(<Wrap><ProspectPage /></Wrap>);
+    expect(screen.queryByRole("region", { name: "Agent" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+    expect(await screen.findByRole("region", { name: "Agent" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close agent" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Agent" })).toBeNull());
+  });
+
+  it("a focus on a property outside the results opens the drawer", async () => {
+    render(<Wrap><FocusButton apn="ZZ" /><ProspectPage /></Wrap>);
+    fireEvent.click(screen.getByRole("button", { name: "focus ZZ" }));
+    expect(await screen.findByRole("complementary", { name: "Property details" })).toBeInTheDocument();
   });
 });

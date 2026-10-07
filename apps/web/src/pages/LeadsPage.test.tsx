@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LeadRecord } from "@crm/contracts";
-import { SearchProvider } from "../state/SearchContext";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { SearchProvider, useSearch } from "../state/SearchContext";
 import { LeadsPage } from "./LeadsPage";
 
 const api = vi.hoisted(() => ({
@@ -20,8 +21,22 @@ const mk = (apn: string, address: string): LeadRecord => ({
   },
 });
 
+function FocusProbe() {
+  const { state } = useSearch();
+  return <div data-testid="focus">{JSON.stringify({ focus: state.focus, pin: state.pin })}</div>;
+}
+
 function setup() {
-  return render(<SearchProvider><LeadsPage /></SearchProvider>);
+  return render(
+    <MemoryRouter initialEntries={["/leads"]}>
+      <SearchProvider>
+        <Routes>
+          <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/" element={<FocusProbe />} />
+        </Routes>
+      </SearchProvider>
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -89,5 +104,13 @@ describe("LeadsPage", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(api.deleteLead).toHaveBeenCalledWith("A1"));
+  });
+
+  it("On map focuses the lead on the Prospect page without moving the pin", async () => {
+    setup();
+    fireEvent.click(await screen.findByRole("button", { name: "Show 2 Oak Ave on map" }));
+    const probe = JSON.parse((await screen.findByTestId("focus")).textContent ?? "{}");
+    expect(probe.focus).toEqual({ apn: "A2", lat: 37.3, lon: -121.9 });
+    expect(probe.pin).toEqual({ lat: 37.3382, lon: -121.8863 });
   });
 });
