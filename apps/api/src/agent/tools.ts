@@ -37,9 +37,9 @@ export type TrimmedLead = ReturnType<typeof trimLead>;
 
 const PropertyDetail = z.looseObject({
   snapshot: PipelineSnapshot,
-  property: z.unknown(),
+  property: z.looseObject({ apn: z.string(), situsAddress: z.string().nullish() }).nullish(),
   permits: z.array(z.unknown()).nullish(),
-  roofAge: z.unknown(),
+  roofAge: z.unknown().optional(),
   owners: z.array(z.unknown()).nullish(),
   contractors: z.array(z.unknown()).nullish(),
 });
@@ -74,11 +74,13 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
     params: Record<string, string | number | boolean | undefined>,
   ) {
     const body = PipelineSearchResponse.parse(await getJson(path, params));
-    for (const item of body.items) returned.set(item.apn, item);
+    const seen = body.items.slice(0, MAX_ITEMS);
+    // Only the records the model actually saw may become leads.
+    for (const item of seen) returned.set(item.apn, item);
     return {
       count: body.items.length,
       manifestCid: body.snapshot.manifestCid,
-      items: body.items.slice(0, MAX_ITEMS).map(trimLead),
+      items: seen.map(trimLead),
     };
   }
 
@@ -177,14 +179,15 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
       }),
       execute: async ({ apn }) => {
         const d = PropertyDetail.parse(await getJson(`/api/properties/${encodeURIComponent(apn)}`));
+        const found = d.property ?? null;
         return {
-          count: 1,
+          count: found ? 1 : 0,
           manifestCid: d.snapshot.manifestCid,
-          property: d.property,
-          roofAge: d.roofAge,
-          permits: (d.permits ?? []).slice(0, MAX_ITEMS),
-          owners: (d.owners ?? []).slice(0, MAX_ITEMS),
-          contractors: (d.contractors ?? []).slice(0, MAX_ITEMS),
+          property: found,
+          roofAge: found ? (d.roofAge ?? null) : null,
+          permits: found ? (d.permits ?? []).slice(0, MAX_ITEMS) : [],
+          owners: found ? (d.owners ?? []).slice(0, MAX_ITEMS) : [],
+          contractors: found ? (d.contractors ?? []).slice(0, MAX_ITEMS) : [],
         };
       },
     }),

@@ -2,7 +2,7 @@ import type { AgentRequest, AgentResponse } from "@crm/contracts";
 import { generateText, type LanguageModel, stepCountIs } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 import { insertLead } from "../leads";
-import { extractSources, resolvedFiltersFromCalls, type Source } from "./postfilter";
+import { extractSources, mentions, resolvedFiltersFromCalls, type Source } from "./postfilter";
 import { SYSTEM_PROMPT } from "./prompt";
 import { type AgentTools, buildTools, type LeadStore } from "./tools";
 
@@ -31,6 +31,8 @@ export interface GenerateResult {
   steps: ReadonlyArray<{
     toolCalls: ReadonlyArray<StepCall>;
     toolResults: ReadonlyArray<StepCall & { output: unknown }>;
+    /** The SDK reports failed tools here as parts of type "tool-error". */
+    content: ReadonlyArray<{ type: string; toolCallId?: string; error?: unknown }>;
   }>;
 }
 
@@ -57,9 +59,12 @@ function contextLine(req: AgentRequest): string {
     : "\nNo map context; call geocode_place when the question names a place.";
 }
 
-/** Records an output exposes for citation: list items, or the APN/permits of get_property. */
-function sourcesOf(call: StepCall, output: unknown): Source[] {
-  const o = (output ?? {}) as { items?: unknown; permits?: unknown };
+/**
+ * Records an output exposes for citation: list items, or for get_property the APN the
+ * pipeline returned plus only those of its permits whose number the answer names.
+ */
+function sourcesOf(call: StepCall, output: unknown, answer: string): Source[] {
+  const o = (output ?? {}) as { items?: unknown; property?: unknown; permits?: unknown };
   const rows: Source[] = [];
   const push = (apn: unknown, permitNumber: unknown, address: unknown) => {
     if (typeof apn !== "string") return;
@@ -70,18 +75,26 @@ function sourcesOf(call: StepCall, output: unknown): Source[] {
     });
   };
   if (Array.isArray(o.items)) {
-    for (const it of o.items as Record<string, unknown>[])
+    for (const it of o.items as Record<string, unknown>[]) {
       push(it["apn"], it["permitNumber"], it["address"]);
+    }
   }
-  if (call.toolName === "get_property") {
-    const apn = (call.input as { apn?: unknown } | null)?.apn;
-    push(apn, undefined, undefined);
+  if (call.toolName === "get_property" && o.property && typeof o.property === "object") {
+    const p = o.property as Record<string, unknown>;
+    push(p["apn"], undefined, p["situsAddress"]);
     if (Array.isArray(o.permits)) {
-      for (const p of o.permits as Record<string, unknown>[])
-        push(apn, p?.["permitNumber"], undefined);
+      for (const permit of o.permits as Record<string, unknown>[]) {
+        const n = permit?.["permitNumber"];
+        if (typeof n === "string" && mentions(answer, n)) push(p["apn"], n, undefined);
+      }
     }
   }
   return rows;
+}
+
+function errorMessage(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.trim() || "tool failed";
 }
 
 export async function runAgent(
@@ -89,7 +102,8 @@ export async function runAgent(
   req: AgentRequest,
   deps: AgentDeps = {},
 ): Promise<AgentResponse> {
-  const generate = deps.generateText ?? ((o: GenerateOptions) => generateText(o));
+  const generate: NonNullable<AgentDeps["generateText"]> =
+    deps.generateText ?? ((o) => generateText(o));
   const fetcher = deps.fetch ?? ((input, init) => fetch(input, init));
   const leadStore = deps.leadStore ?? { create: (input) => insertLead(env.DB, input) };
   const model = deps.model ?? createWorkersAI({ binding: env.AI })(MODEL_ID);
@@ -112,22 +126,26 @@ export async function runAgent(
     result = await generate({ ...base, toolChoice: "required" });
   }
 
+  const answer = result.text.trim() || NO_ANSWER;
   const toolCalls: AgentResponse["toolCalls"] = [];
   const returned: Source[] = [];
   for (const step of result.steps) {
     for (const call of step.toolCalls) {
       const res = step.toolResults.find((r) => r.toolCallId === call.toolCallId);
+      const failed = step.content.find(
+        (p) => p.type === "tool-error" && p.toolCallId === call.toolCallId,
+      );
       const count = (res?.output as { count?: unknown } | undefined)?.count;
       toolCalls.push({
         name: call.toolName,
         args: call.input,
-        resultCount: typeof count === "number" ? count : 0,
+        resultCount: !failed && typeof count === "number" ? count : 0,
+        ...(failed ? { error: errorMessage(failed.error) } : {}),
       });
-      if (res) returned.push(...sourcesOf(call, res.output));
+      if (res && !failed) returned.push(...sourcesOf(call, res.output, answer));
     }
   }
 
-  const answer = result.text.trim() || NO_ANSWER;
   return {
     answer,
     toolCalls,

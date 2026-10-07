@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import type { AgentResponse, CreateLead, PipelineLead } from "@crm/contracts";
 import type { z } from "zod";
+import { MockLanguageModelV4 } from "ai/test";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import migration from "../../migrations/0001_leads.sql?raw";
 import app from "../index";
@@ -51,6 +52,11 @@ function stubFetch(items: PipelineLead[], status = 200) {
   return { fn: fn as unknown as typeof fetch, urls };
 }
 
+function stubJson(body: unknown): typeof fetch {
+  return (async () =>
+    new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
+}
+
 type Exec = (input: unknown, options: unknown) => Promise<unknown>;
 /** Runs a tool's execute the way the SDK would. */
 const exec = (t: unknown, input: unknown, toolCallId = "x") =>
@@ -69,6 +75,7 @@ function scripted(calls: ScriptedCall[], answer: string) {
     seen.push(opts);
     const toolCalls = [];
     const toolResults = [];
+    const content = [];
     for (const [i, c] of calls.entries()) {
       const toolCallId = `call-${i}`;
       const call = { type: "tool-call" as const, toolCallId, toolName: c.toolName, input: c.input };
@@ -81,11 +88,13 @@ function scripted(calls: ScriptedCall[], answer: string) {
         );
         const result = { ...call, type: "tool-result" as const, output };
         toolResults.push(result);
-      } catch {
-        // the SDK reports a failed tool as a tool-error part, not as a toolResult
+        content.push(result);
+      } catch (error) {
+        // the SDK reports a failed tool as a tool-error content part, not as a toolResult
+        content.push({ ...call, type: "tool-error" as const, error });
       }
     }
-    return { text: answer, steps: [{ toolCalls, toolResults }] };
+    return { text: answer, steps: [{ toolCalls, toolResults, content }] };
   };
   return { fn, seen };
 }
@@ -157,6 +166,16 @@ describe("buildTools", () => {
     const { fn } = stubFetch([], 503);
     const tools = buildTools("https://pipeline.test", fn, leadStore());
     await expect(exec(tools.search_properties_in_radius, AGED)).rejects.toThrow(/503/);
+  });
+
+  it("lets create_lead accept only the 25 records the model saw", async () => {
+    const store = leadStore();
+    const many = Array.from({ length: 30 }, (_, i) => pipelineLead(`A-${i}`));
+    const tools = buildTools("https://pipeline.test", stubFetch(many).fn, store);
+    await exec(tools.find_aged_roofs, AGED);
+    expect(await exec(tools.create_lead, { apn: "A-27" })).toMatchObject({ created: false });
+    expect(await exec(tools.create_lead, { apn: "A-24" })).toMatchObject({ created: true });
+    expect(store.create).toHaveBeenCalledTimes(1);
   });
 
   it("refuses create_lead for an apn no tool returned", async () => {
@@ -265,7 +284,7 @@ describe("runAgent", () => {
     const gen: NonNullable<AgentDeps["generateText"]> = async (opts) => {
       calls.push(opts);
       return calls.length === 1
-        ? { text: "I guess.", steps: [{ toolCalls: [], toolResults: [] }] }
+        ? { text: "I guess.", steps: [{ toolCalls: [], toolResults: [], content: [] }] }
         : tooled.fn(opts);
     };
     const res = await runAgent(
@@ -297,6 +316,56 @@ describe("runAgent", () => {
     expect(res.answer).toBe(NO_ANSWER);
   });
 
+  it("cites nothing from get_property when the pipeline has no such property", async () => {
+    const gen = scripted(
+      [{ toolName: "get_property", input: { apn: "264-12-034" } }],
+      "264-12-034 has an old roof.",
+    );
+    const res = await runAgent(
+      env,
+      { question: "Tell me about 264-12-034", context: null },
+      {
+        generateText: gen.fn,
+        fetch: stubJson({ snapshot: SNAPSHOT, property: null }),
+        leadStore: leadStore(),
+        model: "test-model",
+      },
+    );
+    expect(res.toolCalls[0]).toEqual({
+      name: "get_property",
+      args: { apn: "264-12-034" },
+      resultCount: 0,
+    });
+    expect(res.sources).toEqual([]);
+  });
+
+  it("cites only the get_property permit the answer names, under the returned apn", async () => {
+    const gen = scripted(
+      [{ toolName: "get_property", input: { apn: "asked-apn" } }],
+      "Permit 2019-000002-RS expired without a final inspection.",
+    );
+    const detail = {
+      snapshot: SNAPSHOT,
+      property: { apn: "264-12-034", situsAddress: "1 Main St" },
+      permits: [{ permitNumber: "2019-000001-RS" }, { permitNumber: "2019-000002-RS" }],
+      roofAge: null,
+      owners: [],
+      contractors: [],
+    };
+    const res = await runAgent(
+      env,
+      { question: "Tell me about 264-12-034", context: null },
+      {
+        generateText: gen.fn,
+        fetch: stubJson(detail),
+        leadStore: leadStore(),
+        model: "test-model",
+      },
+    );
+    expect(res.toolCalls[0]!.resultCount).toBe(1);
+    expect(res.sources).toEqual([{ apn: "264-12-034", permitNumber: "2019-000002-RS" }]);
+  });
+
   it("reports a failed tool call with resultCount 0", async () => {
     const gen = scripted(
       [{ toolName: "find_aged_roofs", input: AGED }],
@@ -312,8 +381,111 @@ describe("runAgent", () => {
         model: "test-model",
       },
     );
-    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 0 }]);
+    expect(res.toolCalls).toEqual([
+      {
+        name: "find_aged_roofs",
+        args: AGED,
+        resultCount: 0,
+        error: expect.stringContaining("500"),
+      },
+    ]);
     expect(res.sources).toEqual([]);
+  });
+});
+
+describe("runAgent with the real ai generateText loop", () => {
+  const usage = {
+    inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 1, text: 1, reasoning: 0 },
+  };
+
+  it("runs tools, cites returned records only, and resolves filters", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "c1",
+              toolName: "find_aged_roofs",
+              input: JSON.stringify({
+                lat: "37.3382",
+                lon: -121.8863,
+                radiusMiles: 5,
+                minRoofAgeYears: 20,
+              }),
+            },
+          ],
+          finishReason: { unified: "tool-calls", raw: undefined },
+          usage,
+          warnings: [],
+        },
+        {
+          content: [
+            {
+              type: "text",
+              text: "Roof 22 years: 264-12-034. Also 777-77-777.\nSOURCES: 264-12-034",
+            },
+          ],
+          finishReason: { unified: "stop", raw: undefined },
+          usage,
+          warnings: [],
+        },
+      ],
+    });
+    const { fn: fetcher, urls } = stubFetch([
+      pipelineLead("264-12-034"),
+      pipelineLead("264-12-035"),
+    ]);
+    const res = await runAgent(
+      env,
+      { question: "Old roofs near San Jose?", context: null },
+      { fetch: fetcher, leadStore: leadStore(), model },
+    );
+    expect(urls).toHaveLength(1);
+    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2 }]);
+    expect(res.sources.map((s) => s.apn)).toEqual(["264-12-034"]);
+    expect(res.resolvedFilters).toEqual({
+      lat: 37.3382,
+      lon: -121.8863,
+      radiusMiles: 5,
+      minRoofAgeYears: 20,
+    });
+    expect(model.doGenerateCalls).toHaveLength(2);
+    expect(model.doGenerateCalls[1]!.toolChoice).toEqual({ type: "auto" });
+  });
+
+  it("surfaces a failed tool through the real loop", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "c1",
+              toolName: "find_aged_roofs",
+              input: JSON.stringify(AGED),
+            },
+          ],
+          finishReason: { unified: "tool-calls", raw: undefined },
+          usage,
+          warnings: [],
+        },
+        {
+          content: [{ type: "text", text: "The pipeline failed.\nSOURCES: none" }],
+          finishReason: { unified: "stop", raw: undefined },
+          usage,
+          warnings: [],
+        },
+      ],
+    });
+    const res = await runAgent(
+      env,
+      { question: "Old roofs near San Jose?", context: null },
+      { fetch: stubFetch([], 503).fn, leadStore: leadStore(), model },
+    );
+    expect(res.toolCalls[0]!.resultCount).toBe(0);
+    expect(res.toolCalls[0]!.error).toMatch(/503/);
   });
 });
 

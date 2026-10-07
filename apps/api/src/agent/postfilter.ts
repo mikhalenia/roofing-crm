@@ -8,7 +8,7 @@ function escapeRegExp(s: string): string {
 }
 
 /** True when `id` occurs in `text` as a whole token (not inside a longer identifier). */
-function mentions(text: string, id: string): boolean {
+export function mentions(text: string, id: string): boolean {
   return new RegExp(`(?<![\\w-])${escapeRegExp(id)}(?![\\w-])`, "i").test(text);
 }
 

@@ -12,7 +12,13 @@ export type AgentRequest = z.infer<typeof AgentRequest>;
 export const AgentResponse = z.object({
   answer: z.string(),
   toolCalls: z.array(
-    z.object({ name: z.string(), args: z.unknown(), resultCount: z.number() }),
+    z.object({
+      name: z.string(),
+      args: z.unknown(),
+      resultCount: z.number(),
+      // Set when the tool call failed (resultCount is then 0).
+      error: z.string().optional(),
+    }),
   ),
   sources: z.array(
     z.object({ apn: z.string(), permitNumber: z.string().optional(), address: z.string().optional() }),
