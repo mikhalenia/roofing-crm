@@ -3,5 +3,6 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
-pnpm-lock.yamlREADME.md
+pnpm-lock.yaml
+README.md
 /docs
