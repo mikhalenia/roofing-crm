@@ -102,6 +102,22 @@ function sourcesOf(call: StepCall, output: unknown, answer: string): Source[] {
   return rows;
 }
 
+/** Raw pipeline tokens and the friendly names the UI uses (prompt rule 5). */
+const FRIENDLY: ReadonlyArray<[RegExp, string]> = [
+  [/["'`]?\bexpired_unfinaled\b["'`]?/g, "stalled"],
+  [/["'`]?\bapproval_complete_issue_date\b["'`]?/g, "approval completed (issue date)"],
+  [/["'`]?\bfinal_date\b["'`]?/g, "final inspection date"],
+  [/["'`]?\baged_roof\b["'`]?/g, "aged roof"],
+  [/["'`]?\bopen_permit\b["'`]?/g, "open permit"],
+  [/["'`]?\bstalled_permit\b["'`]?/g, "stalled permit"],
+  [/["'`]\bfinaled\b["'`]|\bfinaled\b/g, "completed"],
+];
+
+/** Safety net for prompt rule 5: never show a raw pipeline token to a sales user. */
+export function plainStates(text: string): string {
+  return FRIENDLY.reduce((t, [re, name]) => t.replace(re, name), text);
+}
+
 function errorMessage(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   return msg.trim() || "tool failed";
@@ -161,7 +177,7 @@ export async function runAgent(
     });
     if (!isDegenerateAnswer(repaired.text)) text = repaired.text;
   }
-  const answer = text.trim() || NO_ANSWER;
+  const answer = plainStates(text.trim()) || NO_ANSWER;
   const toolCalls: AgentResponse["toolCalls"] = [];
   const returned: Source[] = [];
   for (const step of result.steps) {
@@ -170,7 +186,13 @@ export async function runAgent(
       const failed = step.content.find(
         (p) => p.type === "tool-error" && p.toolCallId === call.toolCallId,
       );
-      const out = (res?.output ?? {}) as { count?: unknown; fetched?: unknown; error?: unknown };
+      const out = (res?.output ?? {}) as {
+        count?: unknown;
+        fetched?: unknown;
+        error?: unknown;
+        capped?: unknown;
+        shown?: unknown;
+      };
       const count = typeof out.fetched === "number" ? out.fetched : out.count;
       // A tool can also report a soft failure (unknown place, unknown APN) as an `error` field.
       const error = failed
@@ -183,6 +205,8 @@ export async function runAgent(
         args: call.input,
         resultCount: !failed && typeof count === "number" ? count : 0,
         ...(error ? { error } : {}),
+        ...(!failed && typeof out.capped === "boolean" ? { capped: out.capped } : {}),
+        ...(!failed && typeof out.shown === "number" ? { shown: out.shown } : {}),
       });
       if (res && !failed) returned.push(...sourcesOf(call, res.output, answer));
     }

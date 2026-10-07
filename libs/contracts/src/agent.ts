@@ -25,6 +25,10 @@ export const AgentResponse = z.object({
       resultCount: z.number(),
       // Set when the tool call failed (resultCount is then 0).
       error: z.string().optional(),
+      // Search tools: the fetch limit was hit, so resultCount is a lower bound.
+      capped: z.boolean().optional(),
+      // Search tools: records the model was shown (a prefix of the fetched ones).
+      shown: z.number().optional(),
     }),
   ),
   sources: z.array(

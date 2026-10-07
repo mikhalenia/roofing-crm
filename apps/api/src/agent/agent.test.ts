@@ -219,7 +219,7 @@ describe("runAgent", () => {
     expect(res.sources).toEqual([
       { apn: "264-12-034", permitNumber: "P-264-12-034", address: "264-12-034 Main St" },
     ]);
-    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2 }]);
+    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2, capped: false, shown: 2 }]);
     expect(res.resolvedFilters).toEqual({
       lat: 37.3382,
       lon: -121.8863,
@@ -258,6 +258,40 @@ describe("runAgent", () => {
     const system = gen.seen[0]!.system;
     expect(system).toContain("Selected property: APN 264-12-034, address 1 Main St.");
     expect(system).toMatch(/call get_property for APN 264-12-034 first/);
+  });
+
+  it("replaces the raw expired_unfinaled state name in the answer and tells the model not to use it", async () => {
+    const gen = scripted(
+      [{ toolName: "find_aged_roofs", input: AGED }],
+      'Permit P-1 is "expired_unfinaled". Another is expired_unfinaled too.\nSOURCES: none',
+    );
+    const res = await runAgent(
+      env,
+      { question: "Old roofs?", context: null },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.answer).not.toContain("expired_unfinaled");
+    expect(res.answer).toContain("Permit P-1 is stalled. Another is stalled too.");
+    expect(gen.seen[0]!.system).toContain('expired_unfinaled -> "Stalled"');
+    expect(gen.seen[0]!.system).toMatch(/never the raw tool values/);
+  });
+
+  it("replaces every raw pipeline token in the answer", async () => {
+    const { plainStates } = await import("./index");
+    expect(
+      plainStates("final_date, approval_complete_issue_date, aged_roof, open_permit, stalled_permit, finaled, 'expired_unfinaled'"),
+    ).toBe("final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, stalled");
+  });
+
+  it("reports capped and shown for search tool calls", async () => {
+    const { fn: fetcher } = stubFetch([pipelineLead("264-12-034"), pipelineLead("264-12-035")]);
+    const gen = scripted([{ toolName: "find_aged_roofs", input: { ...AGED, limit: 2 } }], "Two roofs. Both old.\nSOURCES: 264-12-034");
+    const res = await runAgent(
+      env,
+      { question: "Old roofs?", context: null },
+      { generateText: gen.fn, fetch: fetcher, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.toolCalls[0]).toMatchObject({ resultCount: 2, capped: true, shown: 2 });
   });
 
   it("omits the selected-property line without an apn", async () => {
@@ -486,7 +520,7 @@ describe("runAgent", () => {
     expect(calls[1]!.prompt).toContain('"apn":"264-12-035"');
     expect(res.answer).toBe(prose);
     expect(res.sources.map((s) => s.apn)).toEqual(["264-12-034"]);
-    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2 }]);
+    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2, capped: false, shown: 2 }]);
   });
 
   it("keeps the original answer when the repair is degenerate too", async () => {
@@ -600,7 +634,7 @@ describe("runAgent with the real ai generateText loop", () => {
       { fetch: fetcher, leadStore: leadStore(), model },
     );
     expect(urls).toHaveLength(1);
-    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2 }]);
+    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2, capped: false, shown: 2 }]);
     expect(res.sources.map((s) => s.apn)).toEqual(["264-12-034"]);
     expect(res.resolvedFilters).toEqual({
       lat: 37.3382,

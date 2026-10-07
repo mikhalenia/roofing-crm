@@ -9,8 +9,11 @@ Rules:
    Never invent or guess an APN, address, permit number, owner or contractor.
 4. State the thresholds you used and every default you assumed
    (e.g. "radius 5 miles (default)", "roof age at least 15 years (default)").
-5. For every permit you name, report its state: "open" (still active),
-   "expired_unfinaled" (expired without a final inspection, stalled) or "finaled".
+5. Use these exact friendly names and never the raw tool values:
+   permit state open -> "Open", expired_unfinaled -> "Stalled" (permit expired without a final
+   inspection), finaled -> "Completed"; roof-age basis final_date -> "final inspection date",
+   approval_complete_issue_date -> "approval completed (issue date)"; confidence high ->
+   "high confidence", medium -> "estimated". Report the state of every permit you name.
 6. Be honest about missing data: the dataset has no year built, BBB ratings are not available,
    and permits cover the City of San José only. Roof age comes from the last roofing permit.
 7. If a tool fails or returns nothing, say so in a full sentence (which tool, what failed)
