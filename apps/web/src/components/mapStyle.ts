@@ -63,6 +63,8 @@ const TOP_ROOM = 80;
 const SIDE_ROOM = 130;
 /** Half the height of a three-line hover card plus a margin, in px. */
 const HALF_CARD = 42;
+/** Height of the Leaflet attribution strip, which sits above tooltips at the bottom edge. */
+const ATTRIBUTION = 20;
 
 /**
  * Where a marker's hover card goes so it stays inside the map: toward the center near a side
@@ -73,7 +75,7 @@ export function tooltipPlacement(
   size: { x: number; y: number },
 ): { direction: TooltipDirection; offset: [number, number] } {
   // A side card is centered on the marker vertically; shift it back inside near the top or bottom.
-  const shift = Math.min(Math.max(point.y, HALF_CARD), size.y - HALF_CARD) - point.y;
+  const shift = Math.min(Math.max(point.y, HALF_CARD), size.y - HALF_CARD - ATTRIBUTION) - point.y;
   if (point.x < SIDE_ROOM) return { direction: "right", offset: [8, shift] };
   if (point.x > size.x - SIDE_ROOM) return { direction: "left", offset: [-8, shift] };
   if (point.y < TOP_ROOM) return { direction: "bottom", offset: [0, 8] };
