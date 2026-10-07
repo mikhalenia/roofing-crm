@@ -86,7 +86,14 @@ export type SearchAction =
   | { type: "focusDone" }
   | { type: "hover"; apn: string | null }
   /** `key` is the searchKey of the request; a response for an older search is dropped. */
-  | { type: "searchSucceeded"; aged: PipelineSearchResponse; open: PipelineSearchResponse; key?: string }
+  | {
+      type: "searchSucceeded";
+      aged: PipelineSearchResponse;
+      open: PipelineSearchResponse;
+      key?: string;
+      /** The permit-state filter the request was made with; the shown rows follow it. */
+      permitState?: Filters["permitState"];
+    }
   | { type: "searchFailed"; error: string; key?: string }
   | { type: "healthLoaded"; snapshot: PipelineSnapshot }
   | { type: "healthFailed"; error: string };
@@ -179,19 +186,21 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
       return { ...state, focus: null };
     case "hover":
       return state.hoverApn === action.apn ? state : { ...state, hoverApn: action.apn };
-    case "searchSucceeded":
+    case "searchSucceeded": {
       if (isStale(state, action.key)) return state;
+      const requested = action.permitState ?? state.filters.permitState;
       return {
         ...state,
         loading: false,
         error: null,
-        results: visibleResults(mergeResults(action.aged, action.open), state.filters.permitState),
+        results: visibleResults(mergeResults(action.aged, action.open), requested),
         // With a state filter only permit-search rows are shown, so only that search can be capped.
         capped:
           action.open.items.length >= SEARCH_LIMIT ||
-          (state.filters.permitState === "any" && action.aged.items.length >= SEARCH_LIMIT),
+          (requested === "any" && action.aged.items.length >= SEARCH_LIMIT),
         snapshot: action.aged.snapshot ?? action.open.snapshot,
       };
+    }
     case "searchFailed":
       if (isStale(state, action.key)) return state;
       // Keep previous results so a transient failure does not blank the table.

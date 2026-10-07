@@ -32,7 +32,8 @@ export function useProspectSearch(): () => void {
     const key = searchKey(state);
     dispatch({ type: "searchStarted", key });
     Promise.all([fetchAgedRoofs(parsed.data), fetchOpenPermits(parsed.data)]).then(
-      ([aged, open]) => dispatch({ type: "searchSucceeded", aged, open, key }),
+      ([aged, open]) =>
+        dispatch({ type: "searchSucceeded", aged, open, key, permitState: parsed.data.permitState }),
       (e: unknown) => dispatch({ type: "searchFailed", error: message(e), key }),
     );
   }, [state, dispatch]);

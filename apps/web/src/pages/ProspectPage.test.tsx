@@ -36,14 +36,18 @@ const item = {
   provenance: { propertySourceUrl: "u", propertySourceVersion: "v", fetchedAt: "t" },
 };
 let failSearch = false;
+/** When set, search responses wait for this promise (to change filters while a search is in flight). */
+let hold: Promise<void> | null = null;
 const fetchMock = vi.fn(async (url: string) => {
   if (url.includes("/api/health")) return new Response(JSON.stringify({ ok: true, snapshot }));
+  if (hold) await hold;
   if (failSearch) return new Response("{}", { status: 500 });
   return new Response(JSON.stringify({ snapshot, items: [item] }));
 });
 
 beforeEach(() => {
   failSearch = false;
+  hold = null;
   fetchMock.mockClear();
   hoisted.markerProps.length = 0;
   vi.stubGlobal("fetch", fetchMock);
@@ -69,6 +73,11 @@ function FocusButton({ apn }: { apn: string }) {
       focus {apn}
     </button>
   );
+}
+
+function StalledButton() {
+  const { dispatch } = useSearch();
+  return <button type="button" onClick={() => dispatch({ type: "setFilters", filters: { permitState: "expired_unfinaled" } })}>stalled</button>;
 }
 
 function RadiusButton() {
@@ -193,6 +202,23 @@ describe("ProspectPage", () => {
       expect(searchCalls()).toBe(base + 2);
       expect(lastAgedQuery().get("radiusMiles")).toBe("2");
       expect(lastAgedQuery().get("lat")).toBe("37.35");
+    });
+
+    it("a response is filtered with the state it was requested with, even if the state changed meanwhile", async () => {
+      let release: () => void = () => undefined;
+      hold = new Promise<void>((r) => {
+        release = r;
+      });
+      render(<Wrap><StalledButton /><ProspectPage /></Wrap>);
+      await tick(400); // the first search (permit state Any) is in flight
+      fireEvent.click(screen.getByRole("button", { name: "stalled" }));
+      await tick(100); // inside the debounce window: no new search yet
+      await act(async () => {
+        release();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      // The open-permit row is shown: it was filtered as Any, not as Stalled.
+      expect(screen.getAllByText("1 Main St").length).toBeGreaterThan(0);
     });
   });
 });

@@ -248,6 +248,18 @@ describe("permit-state filter on the shown results", () => {
     expect(run("expired_unfinaled", [agedApproved, stalledOnly])).toEqual(["STALLED"]);
   });
 
+  it("filters with the state the request was made with, not the state at arrival", () => {
+    // Requested with Any; the user switched to Stalled inside the debounce window before the response arrived.
+    const s = searchReducer(initialState, { type: "setFilters", filters: { permitState: "expired_unfinaled" } });
+    const out = searchReducer(s, {
+      type: "searchSucceeded",
+      aged,
+      open: { snapshot, items: [openOnly, stalledOnly] },
+      permitState: "any",
+    });
+    expect(out.results.map((r) => r.lead.apn).sort()).toEqual(["AGED-APPROVED", "AGED-STALLED", "OPEN", "STALLED"]);
+  });
+
   it("with a state filter only the permit search can cap the results", () => {
     const many = Array.from({ length: 200 }, (_, i) => lead(`A${i}`, { roofAgeYears: 20 }));
     const s = searchReducer(initialState, { type: "setFilters", filters: { permitState: "open" } });
