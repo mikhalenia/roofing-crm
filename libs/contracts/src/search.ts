@@ -34,5 +34,4 @@ export const SearchParams = z.object({
 });
 // Equivalent of SearchParams.partial() but without defaults being filled in.
 export const PartialSearchParams = z.object(fields).partial();
-export type SearchParamsInput = z.input<typeof SearchParams>;
 export type SearchParamsOutput = z.output<typeof SearchParams>;

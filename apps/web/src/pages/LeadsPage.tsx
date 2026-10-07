@@ -59,7 +59,7 @@ export function LeadsPage() {
   return (
     <>
       <Typography variant="h5" component="h2" sx={{ mb: 2 }}>Leads</Typography>
-      <LeadFilters value={value} onChange={setValue} hasPin />
+      <LeadFilters value={value} onChange={setValue} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {leads && leads.length === 0 && (
         <Typography>No leads yet. Save properties from the Prospect page or ask the agent.</Typography>

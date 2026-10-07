@@ -40,10 +40,9 @@ export function toLeadFilter(
 interface Props {
   value: LeadFilterValue;
   onChange: (v: LeadFilterValue) => void;
-  hasPin: boolean;
 }
 
-export function LeadFilters({ value, onChange, hasPin }: Props) {
+export function LeadFilters({ value, onChange }: Props) {
   const set = (patch: Partial<LeadFilterValue>) => onChange({ ...value, ...patch });
   return (
     <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 2, alignItems: "center", mb: 2 }}>
@@ -92,8 +91,7 @@ export function LeadFilters({ value, onChange, hasPin }: Props) {
       <FormControlLabel
         control={
           <Switch
-            checked={value.withinRadius && hasPin}
-            disabled={!hasPin}
+            checked={value.withinRadius}
             onChange={(e) => set({ withinRadius: e.target.checked })}
           />
         }

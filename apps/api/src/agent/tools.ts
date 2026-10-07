@@ -33,7 +33,6 @@ export function trimLead(l: PipelineLead) {
     permitSourceUrl: l.provenance.permitSourceUrl ?? null,
   };
 }
-export type TrimmedLead = ReturnType<typeof trimLead>;
 
 const PropertyDetail = z.looseObject({
   snapshot: PipelineSnapshot,
