@@ -51,7 +51,7 @@ The UI should present property and permit details, including contractor informat
 
 - Web (Cloudflare Pages): https://roofing-crm.pages.dev
 - CRM API (Cloudflare Worker): https://roofing-crm-api.mikhalenia-a.workers.dev
-- Pipeline API consumed for all property and permit data: https://scc-pipeline-api.mikhalenia-a.workers.dev. The UI shows the snapshot run and manifest CID of the data it is reading (Prospect page banner and property drawer).
+- Pipeline API consumed for all property and permit data: https://scc-pipeline-api.mikhalenia-a.workers.dev. The UI shows which snapshot it is reading: the data status chip in the top bar ("About this data" lists the run id and manifest CID) and the provenance block in the property drawer.
 
 ### What was built
 
@@ -98,7 +98,6 @@ The Worker allows CORS from `ALLOWED_ORIGIN` (`https://roofing-crm.pages.dev`) p
 
 - [Limitations](docs/limitations.md)
 - [Acceptance criteria traceability](docs/acceptance-criteria.md)
-- [Demo script](docs/demo-script.md)
 - [PR description](docs/pr-description.md)
 - [Design spec](docs/superpowers/specs/2026-10-07-roofing-crm-design.md) and [agent guide](CLAUDE.md)
 
