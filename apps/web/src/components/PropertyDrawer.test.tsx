@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PropertyDrawer } from "./PropertyDrawer";
 
-const crm = vi.hoisted(() => ({ listLeads: vi.fn(), createLead: vi.fn() }));
+const crm = vi.hoisted(() => ({ createLead: vi.fn() }));
 vi.mock("../api/crm", () => ({
   ...crm,
   CrmError: class CrmError extends Error {
@@ -16,7 +16,7 @@ vi.mock("../api/crm", () => ({
 
 const detail = {
   snapshot: { runId: "r1", manifestCid: "bafyMANIFEST", syncedAt: null },
-  property: { apn: "A1", situsAddress: "1 Main St", situsCity: "San Jose", situsZip: "95112", jurisdiction: "San Jose", sourceUrl: "https://src.test/p", sourceVersion: "v9", fetchedAt: "2026-10-01" },
+  property: { apn: "A1", situsAddress: "1 Main St", situsCity: "San Jose", situsZip: "95112", jurisdiction: "San Jose", lat: 37.3, lon: -121.9, sourceUrl: "https://src.test/p", sourceVersion: "v9", fetchedAt: "2026-10-01" },
   permits: [{ permitNumber: "BLD-1", permitState: "open", issueDate: "2020-01-01", finalDate: null, daysOpen: 700, workDescription: "Re-roof", sourceUrl: "https://src.test/b", sourceVersion: "v2", fetchedAt: "2026-10-01" }],
   roofAge: { roofDate: "2004-05-01", roofAgeYears: 22, anchor: "final_date", confidence: "high", permitNumber: "BLD-0" },
   owners: [{ ownerName: "Jane Doe", observedOn: "2025-02-01", permitNumber: "BLD-1" }],
@@ -24,7 +24,6 @@ const detail = {
 };
 
 beforeEach(() => {
-  crm.listLeads.mockReset().mockResolvedValue([]);
   crm.createLead.mockReset().mockResolvedValue({});
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -68,9 +67,13 @@ describe("PropertyDrawer", () => {
     expect(done).toBeDisabled();
   });
 
-  it("is disabled when the lead already exists", async () => {
-    crm.listLeads.mockResolvedValue([{ apn: "A1" }]);
-    await open();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Already a lead" })).toBeDisabled());
+  it("is disabled and never saves when the property has no coordinates", async () => {
+    const noCoords = { ...detail, property: { ...detail.property, lat: null, lon: null } };
+    vi.stubGlobal("fetch", vi.fn(async (_u: string) => new Response(JSON.stringify(noCoords))));
+    render(<PropertyDrawer apn="A1" onClose={() => undefined} />);
+    const btn = await screen.findByRole("button", { name: "Save as lead" });
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(crm.createLead).not.toHaveBeenCalled();
   });
 });

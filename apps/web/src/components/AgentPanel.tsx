@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import type { AgentResponse } from "@crm/contracts";
-import { CrmError, askAgent } from "../api/crm";
+import { askAgent } from "../api/crm";
+import { errorText } from "../api/errors";
 import { useSearch } from "../state/SearchContext";
 import { PropertyDrawer } from "./PropertyDrawer";
 
@@ -16,13 +17,6 @@ const compact = (v: unknown) => {
   const s = JSON.stringify(v) ?? "";
   return s.length > 80 ? `${s.slice(0, 77)}...` : s;
 };
-
-const errorText = (e: unknown) =>
-  e instanceof CrmError && e.status === 429
-    ? "Too many requests, try again in a minute"
-    : e instanceof Error
-      ? e.message
-      : "Unknown error";
 
 export function AgentPanel() {
   const { state, dispatch } = useSearch();
@@ -115,7 +109,7 @@ export function AgentPanel() {
           </Box>
         </>
       )}
-      <PropertyDrawer apn={selected} onClose={() => setSelected(null)} />
+      <PropertyDrawer apn={selected} pin={state.pin} onClose={() => setSelected(null)} />
     </Stack>
   );
 }

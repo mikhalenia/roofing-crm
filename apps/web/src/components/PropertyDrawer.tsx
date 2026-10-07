@@ -9,11 +9,13 @@ import {
   IconButton,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import type { PipelineLead } from "@crm/contracts";
-import { CrmError, createLead, listLeads } from "../api/crm";
+import { haversineMiles, type PipelineLead } from "@crm/contracts";
+import { CrmError, createLead } from "../api/crm";
+import { errorText } from "../api/errors";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
 import { ProvenanceChip } from "./ProvenanceChip";
 
@@ -27,8 +29,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 // Fallback when the drawer was opened without a search-result row (e.g. from the agent).
-function leadFromDetail(d: PropertyDetail): PipelineLead {
+function leadFromDetail(
+  d: PropertyDetail,
+  pin: { lat: number; lon: number } | undefined,
+): PipelineLead | null {
   const p = d.property;
+  if (p.lat == null || p.lon == null) return null;
   const permit = d.permits.find((pm) => pm.permitState !== "finaled") ?? d.permits[0];
   const ra = d.roofAge;
   const anchor = ra?.anchor === "final_date" || ra?.anchor === "approval_complete_issue_date" ? ra.anchor : null;
@@ -39,8 +45,8 @@ function leadFromDetail(d: PropertyDetail): PipelineLead {
     situsAddress: p.situsAddress ?? null,
     situsCity: p.situsCity ?? null,
     situsZip: p.situsZip ?? null,
-    lat: p.lat ?? 0,
-    lon: p.lon ?? 0,
+    lat: p.lat,
+    lon: p.lon,
     roofAgeYears: ra?.roofAgeYears ?? null,
     roofAgeAnchor: anchor,
     roofAgeConfidence: conf,
@@ -51,7 +57,7 @@ function leadFromDetail(d: PropertyDetail): PipelineLead {
     workDescription: permit?.workDescription ?? null,
     contractorCompany: permit?.contractorCompany ?? null,
     bbbRating: null,
-    distanceMiles: 0,
+    distanceMiles: pin ? haversineMiles(pin, { lat: p.lat, lon: p.lon }) : 0,
     provenance: {
       propertySourceUrl: p.sourceUrl ?? "",
       propertySourceVersion: p.sourceVersion ?? "",
@@ -65,10 +71,12 @@ const dash = (v: unknown) => (v == null || v === "" ? "-" : String(v));
 export function PropertyDrawer({
   apn,
   snapshot,
+  pin,
   onClose,
 }: {
   apn: string | null;
   snapshot?: PipelineLead | undefined;
+  pin?: { lat: number; lon: number } | undefined;
   onClose: () => void;
 }) {
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
@@ -100,25 +108,14 @@ export function PropertyDrawer({
     };
   }, [apn]);
 
-  useEffect(() => {
-    if (!apn) return;
-    let cancelled = false;
-    // Best effort: if the CRM API is down the save attempt will surface the error.
-    listLeads({}).then(
-      (leads) => !cancelled && setKnown((k) => new Set([...k, ...leads.map((l) => l.apn)])),
-      () => undefined,
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [apn]);
-
   const markKnown = (a: string) => setKnown((k) => new Set([...k, a]));
   const save = (detail: PropertyDetail) => {
     const target = detail.property.apn;
+    const lead = snapshot?.apn === target ? snapshot : leadFromDetail(detail, pin);
+    if (!lead) return;
     setSaving(true);
     setSaveError(null);
-    createLead({ apn: target, snapshot: snapshot?.apn === target ? snapshot : leadFromDetail(detail) }).then(
+    createLead({ apn: target, snapshot: lead }).then(
       () => {
         markKnown(target);
         setToast(true);
@@ -127,8 +124,7 @@ export function PropertyDrawer({
       (e: unknown) => {
         setSaving(false);
         if (e instanceof CrmError && e.status === 409) markKnown(target);
-        else if (e instanceof CrmError && e.status === 429) setSaveError("Too many requests, try again in a minute");
-        else setSaveError(e instanceof Error ? e.message : "Failed to save lead");
+        else setSaveError(errorText(e, "Failed to save lead"));
       },
     );
   };
@@ -139,6 +135,7 @@ export function PropertyDrawer({
   const error = current?.error ?? null;
 
   const p = detail?.property;
+  const noCoords = p != null && snapshot?.apn !== p.apn && (p.lat == null || p.lon == null);
   return (
     <Drawer anchor="right" open={apn != null} onClose={onClose}>
       <Box sx={{ width: { xs: "100vw", sm: 440 }, p: 2 }} role="complementary" aria-label="Property details">
@@ -150,14 +147,18 @@ export function PropertyDrawer({
         {error && <Alert severity="error">{error}</Alert>}
         {detail && p && (
           <>
-            <Button
-              variant="contained"
-              disabled={saving || known.has(p.apn)}
-              onClick={() => save(detail)}
-              sx={{ my: 1 }}
-            >
-              {known.has(p.apn) ? "Already a lead" : "Save as lead"}
-            </Button>
+            <Tooltip title={noCoords ? "No coordinates for this property" : ""}>
+              <span>
+                <Button
+                  variant="contained"
+                  disabled={saving || known.has(p.apn) || noCoords}
+                  onClick={() => save(detail)}
+                  sx={{ my: 1 }}
+                >
+                  {known.has(p.apn) ? "Already a lead" : "Save as lead"}
+                </Button>
+              </span>
+            </Tooltip>
             {saveError && <Alert severity="error">{saveError}</Alert>}
             <Section title="Property">
               <Typography variant="body2">APN {p.apn}</Typography>

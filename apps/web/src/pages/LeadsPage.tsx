@@ -15,17 +15,11 @@ import {
   Typography,
 } from "@mui/material";
 import type { LeadRecord, LeadStatus, UpdateLead } from "@crm/contracts";
-import { CrmError, deleteLead, listLeads, updateLead } from "../api/crm";
+import { deleteLead, listLeads, updateLead } from "../api/crm";
+import { errorText } from "../api/errors";
 import { LeadFilters, emptyLeadFilter, toLeadFilter } from "../components/LeadFilters";
 import { LeadRow } from "../components/LeadRow";
 import { useSearch } from "../state/SearchContext";
-
-const errorText = (e: unknown) =>
-  e instanceof CrmError && e.status === 429
-    ? "Too many requests, try again in a minute"
-    : e instanceof Error
-      ? e.message
-      : "Unknown error";
 
 export function LeadsPage() {
   const { state } = useSearch();
