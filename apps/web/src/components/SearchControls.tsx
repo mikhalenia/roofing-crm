@@ -13,13 +13,16 @@ interface Props {
   onLocation: (pin: { lat: number; lon: number }) => void;
 }
 
+/** Half the thumb width on each side keeps the thumb inside the column at min and max. */
+const INSET = { mx: 1.25, width: "calc(100% - 20px)" };
+
 /** A caption label with the current value right-aligned on the same row. */
 function Field({ id, label, value, children }: { id: string; label: string; value?: string; children: ReactNode }) {
   return (
     <Box>
       <Stack sx={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-        <Typography id={id} variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>{label}</Typography>
-        {value && <Typography variant="body2" sx={{ fontWeight: 600 }}>{value}</Typography>}
+        <Typography id={id} variant="caption" sx={{ color: "text.secondary", fontSize: 12, userSelect: "none" }}>{label}</Typography>
+        {value && <Typography variant="body2" sx={{ fontWeight: 600, userSelect: "none" }}>{value}</Typography>}
       </Stack>
       {children}
     </Box>
@@ -62,6 +65,7 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
 
       <Field id="radius-label" label="Radius" value={`${state.radiusMiles} mi`}>
         <Slider
+          sx={INSET}
           aria-labelledby="radius-label"
           valueLabelDisplay="auto"
           min={0.5}
@@ -73,6 +77,7 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
       </Field>
       <Field id="age-label" label="Min roof age" value={`${filters.minRoofAgeYears} yrs`}>
         <Slider
+          sx={INSET}
           aria-labelledby="age-label"
           valueLabelDisplay="auto"
           min={5}
@@ -99,6 +104,7 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
       </Field>
       <Field id="open-label" label="Min open years" value={String(filters.minOpenYears)}>
         <Slider
+          sx={INSET}
           aria-labelledby="open-label"
           valueLabelDisplay="auto"
           min={0}
