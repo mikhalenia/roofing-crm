@@ -1,5 +1,6 @@
 import { FormControlLabel, Link, MenuItem, Stack, Switch, TextField } from "@mui/material";
 import { initialState } from "../state/search";
+import { leadStatusLabel } from "../labels";
 import { LeadStatus, type LeadFilter } from "@crm/contracts";
 
 export interface LeadFilterValue {
@@ -66,9 +67,9 @@ export function LeadFilters({ value, onChange, pin, radiusMiles, onChangeOnMap }
         onChange={(e) => set({ status: e.target.value as LeadFilterValue["status"] })}
         sx={{ minWidth: 140 }}
       >
-        <MenuItem value="">any</MenuItem>
+        <MenuItem value="">Any</MenuItem>
         {LeadStatus.options.map((s) => (
-          <MenuItem key={s} value={s}>{s}</MenuItem>
+          <MenuItem key={s} value={s}>{leadStatusLabel(s)}</MenuItem>
         ))}
       </TextField>
       <TextField
@@ -87,9 +88,9 @@ export function LeadFilters({ value, onChange, pin, radiusMiles, onChangeOnMap }
         onChange={(e) => set({ permitState: e.target.value as LeadFilterValue["permitState"] })}
         sx={{ minWidth: 160 }}
       >
-        <MenuItem value="">any</MenuItem>
+        <MenuItem value="">Any</MenuItem>
         <MenuItem value="open">Open</MenuItem>
-        <MenuItem value="expired_unfinaled">Stalled (expired, no final inspection)</MenuItem>
+        <MenuItem value="expired_unfinaled">Stalled (permit expired without a final inspection)</MenuItem>
         <MenuItem value="any">Open or stalled</MenuItem>
       </TextField>
       <TextField

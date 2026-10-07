@@ -18,6 +18,7 @@ import type { LeadRecord, LeadStatus, UpdateLead } from "@crm/contracts";
 import { deleteLead, listLeads, updateLead } from "../api/crm";
 import { errorText } from "../api/errors";
 import { LeadFilters, emptyLeadFilter, toLeadFilter } from "../components/LeadFilters";
+import { LeadEditor } from "../components/LeadEditor";
 import { LeadRow } from "../components/LeadRow";
 import { useNavigate } from "react-router-dom";
 import { useSearch } from "../state/SearchContext";
@@ -29,6 +30,12 @@ export function LeadsPage() {
   const [leads, setLeads] = useState<LeadRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<LeadRecord | null>(null);
+  const [editing, setEditing] = useState<LeadRecord | null>(null);
+  const [savedApn, setSavedApn] = useState<string | null>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+  }, []);
   const requestId = useRef(0);
 
   const { pin, radiusMiles } = state;
@@ -60,6 +67,22 @@ export function LeadsPage() {
         return false;
       },
     );
+
+  // The pin stays; the map pans to the lead and opens its popup or drawer.
+  const showOnMap = (l: LeadRecord) => {
+    dispatch({ type: "focusProperty", focus: { apn: l.apn, lat: l.snapshot.lat, lon: l.snapshot.lon } });
+    navigate("/");
+  };
+
+  const saveEdit = (apn: string, body: UpdateLead) =>
+    patch(apn, body).then((ok) => {
+      if (ok && body.notes !== undefined) {
+        setSavedApn(apn);
+        if (savedTimer.current) clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setSavedApn(null), 1500);
+      }
+      return ok;
+    });
 
   const confirmDelete = () => {
     const lead = toDelete;
@@ -96,18 +119,16 @@ export function LeadsPage() {
                 key={l.apn}
                 lead={l}
                 onStatus={(apn, status: LeadStatus) => void patch(apn, { status })}
-                onNotes={(apn, notes) => patch(apn, { notes })}
+                onEdit={setEditing}
+                justSaved={savedApn === l.apn}
                 onDelete={setToDelete}
-                onShowOnMap={(l) => {
-                  // The pin stays; the map pans to the lead and opens its popup or drawer.
-                  dispatch({ type: "focusProperty", focus: { apn: l.apn, lat: l.snapshot.lat, lon: l.snapshot.lon } });
-                  navigate("/");
-                }}
+                onShowOnMap={showOnMap}
               />
             ))}
           </TableBody>
         </Table>
       )}
+      <LeadEditor lead={editing} onClose={() => setEditing(null)} onSave={saveEdit} onShowOnMap={showOnMap} />
       <Dialog open={toDelete != null} onClose={() => setToDelete(null)}>
         <DialogTitle>Delete lead?</DialogTitle>
         <DialogContent>

@@ -65,7 +65,7 @@ describe("LeadsPage", () => {
     setup();
     await screen.findByText("1 Main St");
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Status" }));
-    fireEvent.click(await screen.findByRole("option", { name: "qualified" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Qualified" }));
     await waitFor(() => expect(api.listLeads).toHaveBeenLastCalledWith({ status: "qualified" }));
   });
 
@@ -78,21 +78,31 @@ describe("LeadsPage", () => {
     );
   });
 
-  it("debounces notes into a single PATCH", async () => {
+  it("edits notes in the lead editor and saves them with one PATCH", async () => {
     setup();
-    const box = await screen.findByLabelText("Notes for 1 Main St");
-    fireEvent.change(box, { target: { value: "ca" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit notes for 1 Main St" }));
+    const editor = await screen.findByRole("dialog", { name: "Lead: 1 Main St" });
+    const box = within(editor).getByLabelText("Notes");
+    expect(box).toHaveAttribute("placeholder", "Add a note…");
     fireEvent.change(box, { target: { value: "call back" } });
-    expect(api.updateLead).not.toHaveBeenCalled();
-    await waitFor(() => expect(api.updateLead).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    expect(within(editor).getByText("9/2000")).toBeInTheDocument();
+    fireEvent.click(within(editor).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.updateLead).toHaveBeenCalledTimes(1));
     expect(api.updateLead).toHaveBeenCalledWith("A1", { notes: "call back" });
+    expect(await screen.findByLabelText("Note saved")).toBeInTheDocument();
+  });
+
+  it("opens the editor from the keyboard", async () => {
+    setup();
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Edit notes for 2 Oak Ave" }), { key: "Enter" });
+    expect(await screen.findByRole("dialog", { name: "Lead: 2 Oak Ave" })).toBeInTheDocument();
   });
 
   it("changes status via PATCH", async () => {
     setup();
     await screen.findByText("1 Main St");
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Status for 1 Main St" }));
-    fireEvent.click(await screen.findByRole("option", { name: "contacted" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Contacted" }));
     await waitFor(() => expect(api.updateLead).toHaveBeenCalledWith("A1", { status: "contacted" }));
   });
 
@@ -121,9 +131,9 @@ describe("LeadsPage", () => {
     setup();
     expect(await screen.findByText("Stalled")).toBeInTheDocument();
     expect(screen.queryByText("expired_unfinaled")).toBeNull();
-    expect(screen.getByText("7,842")).toBeInTheDocument();
+    expect(screen.getByText("21 years, 5 months")).toHaveAttribute("title", "7,842 days");
     expect(screen.getByText("Oct 1, 2026")).toBeInTheDocument();
-    expect(screen.getByLabelText("Notes for 3 Elm St")).toHaveAttribute("placeholder", "Add a note…");
+    expect(screen.getByText("Add a note…")).toBeInTheDocument();
   });
 
   it("labels the radius switch with a moved pin and links to the map", async () => {
@@ -133,13 +143,5 @@ describe("LeadsPage", () => {
     await screen.findByText("1 Main St");
     fireEvent.click(screen.getByRole("button", { name: "Change on map" }));
     expect(await screen.findByTestId("focus")).toBeInTheDocument();
-  });
-
-  it("shows a saved check after the debounced note PATCH", async () => {
-    setup();
-    const box = await screen.findByLabelText("Notes for 1 Main St");
-    fireEvent.change(box, { target: { value: "call back" } });
-    expect(await screen.findByLabelText("Note saved", {}, { timeout: 2000 })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByLabelText("Note saved")).toBeNull(), { timeout: 3000 });
   });
 });

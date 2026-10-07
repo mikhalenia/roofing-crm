@@ -1,54 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { Button, IconButton, InputAdornment, MenuItem, Select, TableCell, TableRow, TextField, Tooltip } from "@mui/material";
+import { Box, Button, IconButton, MenuItem, Select, TableCell, TableRow, Tooltip, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/EditOutlined";
 import { LeadStatus, type LeadRecord } from "@crm/contracts";
-import { formatCount, friendlyDate, permitStateLabel, shortStateLabel } from "../state/labels";
+import { daysText, durationText, friendlyDate, leadStatusLabel, permitStateHint, permitStateLabel } from "../labels";
 
-const DEBOUNCE_MS = 500;
-const SAVED_MS = 1500;
+const PREVIEW = 60;
 
 interface Props {
   lead: LeadRecord;
   onStatus: (apn: string, status: LeadStatus) => void;
-  /** Resolves true when the note was saved. */
-  onNotes: (apn: string, notes: string) => Promise<boolean> | void;
+  onEdit: (lead: LeadRecord) => void;
   onDelete: (lead: LeadRecord) => void;
   onShowOnMap: (lead: LeadRecord) => void;
+  /** Shows a check next to the note for a moment after it was saved. */
+  justSaved?: boolean;
 }
 
-export function LeadRow({ lead, onStatus, onNotes, onDelete, onShowOnMap }: Props) {
-  const [notes, setNotes] = useState(lead.notes);
-  const [saved, setSaved] = useState(false);
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-  }, []);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<string | null>(null);
-  const onNotesRef = useRef(onNotes);
-  useEffect(() => {
-    onNotesRef.current = onNotes;
-  });
+export function LeadRow({ lead, onStatus, onEdit, onDelete, onShowOnMap, justSaved = false }: Props) {
   const { apn, snapshot: s } = lead;
   const label = s.situsAddress ?? apn;
-
-  const flush = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    if (pending.current !== null) {
-      const done = onNotesRef.current(apn, pending.current);
-      pending.current = null;
-      void done?.then((ok) => {
-        if (!ok) return;
-        setSaved(true);
-        if (savedTimer.current) clearTimeout(savedTimer.current);
-        savedTimer.current = setTimeout(() => setSaved(false), SAVED_MS);
-      });
-    }
-  };
-  // Do not lose an edit made within the debounce window when the row unmounts.
-  useEffect(() => flush, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const note = lead.notes.trim();
 
   return (
     <TableRow>
@@ -61,45 +33,41 @@ export function LeadRow({ lead, onStatus, onNotes, onDelete, onShowOnMap }: Prop
           onChange={(e) => onStatus(apn, e.target.value)}
         >
           {LeadStatus.options.map((st) => (
-            <MenuItem key={st} value={st}>{st}</MenuItem>
+            <MenuItem key={st} value={st}>{leadStatusLabel(st)}</MenuItem>
           ))}
         </Select>
       </TableCell>
-      <TableCell sx={{ minWidth: 220 }}>
-        <TextField
-          size="small"
-          fullWidth
-          value={notes}
-          placeholder="Add a note…"
-          slotProps={{
-            htmlInput: { "aria-label": `Notes for ${label}` },
-            input: {
-              endAdornment: saved ? (
-                <InputAdornment position="end">
-                  <CheckIcon fontSize="small" color="success" aria-label="Note saved" />
-                </InputAdornment>
-              ) : undefined,
-            },
+      <TableCell sx={{ minWidth: 220, maxWidth: 320 }}>
+        <Box
+          role="button"
+          tabIndex={0}
+          aria-label={`Edit notes for ${label}`}
+          onClick={() => onEdit(lead)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onEdit(lead);
+            }
           }}
-          onChange={(e) => {
-            setNotes(e.target.value);
-            pending.current = e.target.value;
-            if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(flush, DEBOUNCE_MS);
-          }}
-        />
+          sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", borderRadius: 1, px: 0.5, "&:hover": { bgcolor: "action.hover" }, "&:focus-visible": { outline: 2, outlineColor: "primary.main" } }}
+        >
+          <Typography variant="body2" sx={{ flex: 1, minWidth: 0, color: note ? "text.primary" : "text.disabled", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {note ? (note.length > PREVIEW ? `${note.slice(0, PREVIEW)}…` : note) : "Add a note…"}
+          </Typography>
+          {justSaved ? <CheckIcon fontSize="small" color="success" aria-label="Note saved" /> : <EditIcon fontSize="small" sx={{ color: "action.active" }} />}
+        </Box>
       </TableCell>
       <TableCell>{s.roofAgeYears != null ? `${s.roofAgeYears} yrs` : "-"}</TableCell>
       <TableCell>
         {s.permitState ? (
-          <Tooltip title={permitStateLabel(s.permitState)}>
-            <span>{shortStateLabel(s.permitState)}</span>
+          <Tooltip title={s.permitStateLabel || permitStateHint(s.permitState)}>
+            <span>{permitStateLabel(s.permitState)}</span>
           </Tooltip>
         ) : (
           "-"
         )}
       </TableCell>
-      <TableCell>{s.daysOpen != null ? formatCount(s.daysOpen) : "-"}</TableCell>
+      <TableCell>{s.daysOpen != null ? <span title={daysText(s.daysOpen)}>{durationText(s.daysOpen)}</span> : "-"}</TableCell>
       <TableCell>{friendlyDate(lead.createdAt) ?? lead.createdAt}</TableCell>
       <TableCell sx={{ whiteSpace: "nowrap" }}>
         <Button size="small" aria-label={`Show ${label} on map`} onClick={() => onShowOnMap(lead)}>
