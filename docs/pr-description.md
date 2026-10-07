@@ -47,11 +47,15 @@ banner shows the error and the last known snapshot, with no fake data.
 
 ## What works today
 
-- Map centered on San José, county-bounded pin, GPS button, radius 0.5-25 mi.
-- Filters: min roof age (default 15), permit state (default Any = open plus stalled), min open years, roofing only.
-- Colored markers (aged roof, open permit, stalled permit) and a sortable candidate table, default longest-open first.
-- Property drawer with permits, contractor, owner observations, roof-age basis and provenance.
-- Leads CRUD with status, notes and filters (code and tests complete; deployed run pending, see Testing).
+- Map centered on San José, county-bounded pin (click or drag), GPS button, radius 0.5-25 mi.
+- Auto-search: pin, radius and filter changes refresh markers and table after 400 ms; "Refresh" stays as a secondary action.
+- Filters: min roof age (default 15), permit state (Open / Stalled / Any, default Any), min open years, roofing only.
+- Map card with a legend and a status line; muted markers per signal (aged roof, open permit, stalled permit), larger when a property has both; hover tooltips; table and marker hover highlight each other.
+- Marker popup with the property summary and Details, Save as lead and Ask agent actions, all on the map.
+- Agent panel next to the map: "Ask agent" prefills a question about the selected property and sends its APN as context; source chips fly the map to the property. The full-page Agent route still works.
+- Property drawer with a header (address, APN, Save as lead, Ask agent), readable permit and roof-age labels, and provenance with raw identifiers behind "Technical details".
+- Data status chip in the top bar ("Data: Santa Clara County · updated …") with an "About this data" explanation.
+- Leads CRUD with status, notes, filters and "On map" (code and tests complete; deployed run pending, see Testing).
 - RAG agent (6 tools, up to 6 steps) with tool-call display, citations and "Apply to map".
 - Disabled future sections in the sidebar.
 
@@ -87,8 +91,9 @@ is used for every LLM call as required, tool schemas are Zod, and there are no p
 - Unit (Vitest): contracts, search state, API clients, components, agent post-filters.
 - Workers pool (`@cloudflare/vitest-pool-workers`): leads CRUD and 409, rate limit, `/agent` with a stubbed model and pipeline, and the real `generateText` loop.
 - Playwright `apps/web-e2e/src/demo-transcript.spec.ts` against the deployed runtime.
-  - Verified on the deployed runtime (screenshots in `apps/web-e2e/screenshots/`): 01 open, 02 pin, 03 radius/age, 04 search, 05 sort, 06 drawer, 09 agent, 10 disabled nav.
-  - Pending: 07 save as lead and 08 leads page. The D1 free-tier daily write limit was hit on 2026-10-07; writes resume 2026-10-08 00:00 UTC, then the e2e is re-run and screenshots added.
+  - The spec now has 12 steps (pin with auto-search, marker popup, ask agent from the popup, save as lead from the popup, leads page, agent page). It passes against a local mock backend.
+  - Verified earlier on the deployed runtime with the old 10-step numbering (screenshots in `apps/web-e2e/screenshots/`): open, pin, radius/age, search, sort, drawer, agent, disabled nav.
+  - Pending: the deployed 12-step run and renumbered screenshots. On 2026-10-07 the D1 free-tier daily limits were hit (CRM writes, then pipeline reads); both reset 2026-10-08 00:00 UTC.
   - Not covered by e2e: lead filters and GPS.
 
 ## Acceptance criteria
