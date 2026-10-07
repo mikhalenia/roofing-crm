@@ -32,14 +32,22 @@ export interface SearchState {
   error: string | null;
   snapshot: PipelineSnapshot | null;
   healthError: string | null;
+  /** A search hit the fetch limit, so the results are a lower bound. */
+  capped: boolean;
+  /** Set by applyParams; ProspectPage runs one search and the search actions clear it. */
+  pendingSearch: boolean;
 }
+
+/** Records fetched per endpoint; a response this long may be truncated. */
+export const SEARCH_LIMIT = 200;
 
 export const initialState: SearchState = {
   pin: { lat: 37.3382, lon: -121.8863 },
   radiusMiles: 5,
   filters: {
     minRoofAgeYears: 15,
-    permitState: "open",
+    // open + expired_unfinaled: stalled permits are the most common signal.
+    permitState: "any",
     minOpenYears: 0,
     roofingOnly: true,
   },
@@ -48,6 +56,8 @@ export const initialState: SearchState = {
   error: null,
   snapshot: null,
   healthError: null,
+  capped: false,
+  pendingSearch: false,
 };
 
 export type SearchAction =
@@ -102,6 +112,7 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
       const { lat, lon, radiusMiles, limit: _limit, ...filters } = action.params;
       return {
         ...state,
+        pendingSearch: true,
         pin: lat != null && lon != null ? { lat, lon } : state.pin,
         radiusMiles: radiusMiles ?? state.radiusMiles,
         filters: {
@@ -111,18 +122,19 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
       };
     }
     case "searchStarted":
-      return { ...state, loading: true, error: null };
+      return { ...state, loading: true, error: null, pendingSearch: false };
     case "searchSucceeded":
       return {
         ...state,
         loading: false,
         error: null,
         results: mergeResults(action.aged, action.open),
+        capped: action.aged.items.length >= SEARCH_LIMIT || action.open.items.length >= SEARCH_LIMIT,
         snapshot: action.aged.snapshot ?? action.open.snapshot,
       };
     case "searchFailed":
       // Keep previous results so a transient failure does not blank the table.
-      return { ...state, loading: false, error: action.error };
+      return { ...state, loading: false, error: action.error, pendingSearch: false };
     case "healthLoaded":
       return { ...state, snapshot: action.snapshot, healthError: null };
     case "healthFailed":
@@ -136,7 +148,7 @@ export function toSearchParams(state: SearchState): SearchParamsOutput {
     lon: state.pin.lon,
     radiusMiles: state.radiusMiles,
     ...state.filters,
-    limit: 200,
+    limit: SEARCH_LIMIT,
   };
 }
 

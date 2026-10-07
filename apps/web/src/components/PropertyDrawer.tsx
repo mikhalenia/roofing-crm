@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
-import { CrmError, createLead } from "../api/crm";
+import { CrmError, createLead, getLead } from "../api/crm";
 import { errorText } from "../api/errors";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
 import { ProvenanceChip } from "./ProvenanceChip";
@@ -109,6 +109,21 @@ export function PropertyDrawer({
   }, [apn]);
 
   const markKnown = (a: string) => setKnown((k) => new Set([...k, a]));
+
+  // Read-only check so an existing lead shows "Already a lead" before any click.
+  useEffect(() => {
+    if (!apn) return;
+    let cancelled = false;
+    getLead(apn).then(
+      (lead) => {
+        if (!cancelled && lead) setKnown((k) => new Set([...k, lead.apn]));
+      },
+      () => undefined, // a failed lookup leaves the button enabled; a save still gets 409
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [apn]);
   const save = (detail: PropertyDetail) => {
     const target = detail.property.apn;
     const lead = snapshot?.apn === target ? snapshot : leadFromDetail(detail, pin);

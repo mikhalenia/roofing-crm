@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PropertyDrawer } from "./PropertyDrawer";
 
-const crm = vi.hoisted(() => ({ createLead: vi.fn() }));
+const crm = vi.hoisted(() => ({ createLead: vi.fn(), getLead: vi.fn() }));
 vi.mock("../api/crm", () => ({
   ...crm,
   CrmError: class CrmError extends Error {
@@ -25,6 +25,7 @@ const detail = {
 
 beforeEach(() => {
   crm.createLead.mockReset().mockResolvedValue({});
+  crm.getLead.mockReset().mockResolvedValue(null);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -57,6 +58,21 @@ describe("PropertyDrawer", () => {
       expect.objectContaining({ apn: "A1", snapshot: expect.objectContaining({ apn: "A1" }) }),
     );
     expect(await screen.findByRole("button", { name: "Already a lead" })).toBeDisabled();
+  });
+
+  it("checks the CRM on open and shows Already a lead for a saved apn", async () => {
+    crm.getLead.mockResolvedValue({ apn: "A1", status: "new" });
+    vi.stubGlobal("fetch", vi.fn(async (_u: string) => new Response(JSON.stringify(detail))));
+    render(<PropertyDrawer apn="A1" onClose={() => undefined} />);
+    expect(await screen.findByRole("button", { name: "Already a lead" })).toBeDisabled();
+    expect(crm.getLead).toHaveBeenCalledWith("A1");
+    expect(crm.createLead).not.toHaveBeenCalled();
+  });
+
+  it("keeps Save as lead enabled when the CRM lookup fails", async () => {
+    crm.getLead.mockRejectedValue(new Error("network"));
+    fireEvent.click(await open());
+    expect(await screen.findByText("Saved as lead")).toBeInTheDocument();
   });
 
   it("flips to Already a lead on 409", async () => {

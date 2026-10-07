@@ -60,4 +60,28 @@ describe("ResultsTable", () => {
     expect(onSelect).toHaveBeenCalledTimes(2);
     expect(onSelect).toHaveBeenCalledWith("B");
   });
+
+  it("labels stalled permits and shows the CSLB license number with status as secondary text", () => {
+    render(
+      <ResultsTable
+        rows={[
+          row("S", { situsAddress: "3 Stall St", permitState: "expired_unfinaled", cslbLicenseNumber: "765432", cslbStatus: "Active" }),
+          row("N", { situsAddress: "4 None St", permitState: "open" }),
+        ]}
+        onSelect={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Stalled (expired, no final inspection)")).toBeInTheDocument();
+    expect(screen.queryByText("expired_unfinaled")).toBeNull();
+    expect(screen.getByText("765432")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("states the count, and that it is a lower bound when capped", () => {
+    const { rerender } = render(<ResultsTable rows={rows} onSelect={() => undefined} />);
+    expect(screen.getByText("2 results")).toBeInTheDocument();
+    rerender(<ResultsTable rows={rows} capped onSelect={() => undefined} />);
+    expect(screen.getByText(/Showing 2 of at least 2/)).toBeInTheDocument();
+  });
 });

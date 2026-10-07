@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CrmError, askAgent, createLead, deleteLead, listLeads, updateLead } from "./crm";
+import { CrmError, askAgent, createLead, deleteLead, getLead, listLeads, updateLead } from "./crm";
 
 const snapshot = {
   apn: "A1", lat: 37.3, lon: -121.9, bbbRating: null, distanceMiles: 1,
@@ -34,6 +34,16 @@ describe("crm api", () => {
     const init = fn.mock.calls[0]?.[1];
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toMatchObject({ apn: "A1" });
+  });
+
+  it("gets one lead by encoded apn, null on 404, throws otherwise", async () => {
+    const fn = mockFetch(200, lead);
+    expect((await getLead("A/1"))?.apn).toBe("A1");
+    expect(String(fn.mock.calls[0]?.[0])).toContain("/leads/A%2F1");
+    mockFetch(404, { error: "not found" });
+    expect(await getLead("A1")).toBeNull();
+    mockFetch(500, { error: "boom" });
+    await expect(getLead("A1")).rejects.toBeInstanceOf(CrmError);
   });
 
   it("throws CrmError with 409 status", async () => {

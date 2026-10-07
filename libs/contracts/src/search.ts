@@ -27,7 +27,8 @@ export const SearchParams = z.object({
   ...fields,
   radiusMiles: fields.radiusMiles.default(5),
   minRoofAgeYears: fields.minRoofAgeYears.default(15),
-  permitState: fields.permitState.default('open'),
+  // 'any' = open + expired_unfinaled, so stalled permits (the most common signal) show by default.
+  permitState: fields.permitState.default('any'),
   minOpenYears: fields.minOpenYears.default(0),
   roofingOnly: fields.roofingOnly.default(true),
   limit: fields.limit.default(200),

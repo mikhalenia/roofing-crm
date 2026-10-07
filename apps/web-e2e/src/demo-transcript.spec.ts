@@ -106,18 +106,25 @@ test("README demo transcript", async ({ page, request }) => {
 
     await writeStep("07 save as lead", async () => {
       const drawer = page.getByRole("complementary", { name: "Property details" });
-      const created = page.waitForResponse(
-        (r) => r.url().endsWith("/leads") && r.request().method() === "POST",
-      );
-      await drawer.getByRole("button", { name: "Save as lead" }).click();
-      const status = (await created).status();
-      if (status === 201) {
-        savedThisRun = true;
-        await expect(page.getByText("Saved as lead")).toBeVisible();
+      const action = drawer.getByRole("button", { name: /^(Save as lead|Already a lead)$/ });
+      await expect(action).toBeVisible();
+      if ((await action.textContent()) === "Already a lead") {
+        // The drawer checks GET /leads/:apn on open; a leftover lead from an earlier run is already marked.
+        await expect(action).toBeDisabled();
       } else {
-        // A leftover lead from an earlier run yields a 409, shown as "Already a lead".
-        expect(status).toBe(409);
-        await expect(drawer.getByRole("button", { name: "Already a lead" })).toBeVisible();
+        const created = page.waitForResponse(
+          (r) => r.url().endsWith("/leads") && r.request().method() === "POST",
+        );
+        await action.click();
+        const status = (await created).status();
+        if (status === 201) {
+          savedThisRun = true;
+          await expect(page.getByText("Saved as lead")).toBeVisible();
+        } else {
+          // A lead saved between the check and the click yields a 409, shown as "Already a lead".
+          expect(status).toBe(409);
+          await expect(drawer.getByRole("button", { name: "Already a lead" })).toBeVisible();
+        }
       }
       await shot(page, "07-saved");
     });

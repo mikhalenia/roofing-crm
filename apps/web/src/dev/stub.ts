@@ -103,6 +103,7 @@ export async function stubCrmFetch(url: string, init?: RequestInit): Promise<Res
     const apn = decodeURIComponent(m[1] ?? "");
     const lead = stubLeads.get(apn);
     if (!lead) return json({ error: "not found" }, 404);
+    if (method === "GET") return json(lead);
     if (method === "PATCH") {
       stubLeads.set(apn, { ...lead, ...body, updatedAt: new Date().toISOString() });
       return json(stubLeads.get(apn));

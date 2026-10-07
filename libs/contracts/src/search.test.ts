@@ -9,7 +9,7 @@ describe('SearchParams', () => {
       ...base,
       radiusMiles: 5,
       minRoofAgeYears: 15,
-      permitState: 'open',
+      permitState: 'any',
       minOpenYears: 0,
       roofingOnly: true,
       limit: 200,

@@ -26,7 +26,7 @@ describe("searchReducer", () => {
     expect(initialState.radiusMiles).toBe(5);
     expect(initialState.filters).toEqual({
       minRoofAgeYears: 15,
-      permitState: "open",
+      permitState: "any",
       minOpenYears: 0,
       roofingOnly: true,
     });
@@ -160,6 +160,35 @@ describe("applyParams", () => {
     expect(next.pin).toEqual({ lat: 37.4, lon: -122.1 });
     expect(next.radiusMiles).toBe(3);
     expect(next.filters).toEqual({ ...initialState.filters, minRoofAgeYears: 25 });
-    expect(searchReducer(initialState, { type: "applyParams", params: {} })).toEqual(initialState);
+    expect(searchReducer(initialState, { type: "applyParams", params: {} })).toEqual({
+      ...initialState,
+      pendingSearch: true,
+    });
+  });
+
+  it("queues one search that searchStarted or searchFailed clears", () => {
+    expect(initialState.pendingSearch).toBe(false);
+    const queued = searchReducer(initialState, { type: "applyParams", params: { lat: 37.4, lon: -122.1 } });
+    expect(queued.pendingSearch).toBe(true);
+    expect(searchReducer(queued, { type: "searchStarted" }).pendingSearch).toBe(false);
+    expect(searchReducer(queued, { type: "searchFailed", error: "x" }).pendingSearch).toBe(false);
+  });
+});
+
+describe("capped", () => {
+  it("is set when either search returned the 200-record limit", () => {
+    const many = Array.from({ length: 200 }, (_, i) => lead(`A-${i}`));
+    const full = searchReducer(initialState, {
+      type: "searchSucceeded",
+      aged: { snapshot, items: many },
+      open: { snapshot, items: [] },
+    });
+    expect(full.capped).toBe(true);
+    const few = searchReducer(full, {
+      type: "searchSucceeded",
+      aged: { snapshot, items: [lead("A")] },
+      open: { snapshot, items: [] },
+    });
+    expect(few.capped).toBe(false);
   });
 });

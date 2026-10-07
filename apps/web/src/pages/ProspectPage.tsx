@@ -46,6 +46,11 @@ export function ProspectPage() {
     );
   }, [state, dispatch]);
 
+  // "Apply to map" on the agent page queues a search; run it once on arrival.
+  useEffect(() => {
+    if (state.pendingSearch) search();
+  }, [state.pendingSearch, search]);
+
   return (
     <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}>
       <Paper sx={{ width: { md: 300 }, flexShrink: 0 }}>
@@ -70,7 +75,7 @@ export function ProspectPage() {
           />
         </Box>
         <Box sx={{ overflowX: "auto" }}>
-          <ResultsTable rows={state.results} onSelect={setSelected} selectedApn={selected} />
+          <ResultsTable rows={state.results} capped={state.capped} onSelect={setSelected} selectedApn={selected} />
         </Box>
       </Box>
       <PropertyDrawer apn={selected} snapshot={state.results.find((r) => r.lead.apn === selected)?.lead} onClose={() => setSelected(null)} />

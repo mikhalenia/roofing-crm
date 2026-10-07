@@ -63,6 +63,16 @@ export function listLeads(filter: LeadFilter = {}): Promise<LeadRecord[]> {
   return call(`/leads${qs ? `?${qs}` : ""}`, z.array(LeadRecord));
 }
 
+/** The saved lead for an APN, or null when it is not a lead. */
+export async function getLead(apn: string): Promise<LeadRecord | null> {
+  try {
+    return await call(`/leads/${encodeURIComponent(apn)}`, LeadRecord);
+  } catch (e) {
+    if (e instanceof CrmError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 export function createLead(input: CreateLead): Promise<LeadRecord> {
   return call("/leads", LeadRecord, { method: "POST", body: input });
 }
