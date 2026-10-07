@@ -7,7 +7,7 @@
     {
       "binding": "DB",
       "database_name": "roofing-crm",
-      "database_id": "TBD-created-at-deploy",
+      "database_id": "4d77938f-3e59-493e-9c19-ec772bcdb543",
       "migrations_dir": "migrations"
     }
   ],

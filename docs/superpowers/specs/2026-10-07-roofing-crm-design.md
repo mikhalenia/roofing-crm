@@ -117,3 +117,11 @@ CLAUDE.md
 ## 9. Out of scope
 
 Ingestion, live BBB lookup, outbound messaging, authentication, multi-user tenancy.
+
+## Decisions
+
+- Agent model (2026-10-07): `@cf/meta/llama-3.3-70b-instruct-fp8-fast` via `workers-ai-provider`.
+  On a preview deploy it emitted tool calls on every run (geocode_place, find_aged_roofs). It
+  sends numbers as strings, so tool inputs use `z.coerce`. `@cf/openai/gpt-oss-20b` was tried
+  as well: one of two runs returned a broken tool name (`find_aged_roofs<|channel|>analysis`)
+  and no text, so llama stays. Raw output: `docs/agent-sample.md`.

@@ -47,6 +47,33 @@ async function readJson(req: Request): Promise<unknown> {
   }
 }
 
+/** Inserts a new lead (status "new"); "exists" when the APN is already a lead. Shared with the agent. */
+export async function insertLead(
+  db: D1Database,
+  { apn, snapshot }: CreateLead,
+  now = new Date().toISOString(),
+): Promise<"created" | "exists"> {
+  const result = await db
+    .prepare(
+      `INSERT OR IGNORE INTO leads
+         (apn, status, notes, snapshot, lat, lon, roof_age_years, permit_state, days_open, created_at, updated_at)
+       VALUES (?, 'new', '', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      apn,
+      JSON.stringify(snapshot),
+      snapshot.lat,
+      snapshot.lon,
+      snapshot.roofAgeYears ?? null,
+      snapshot.permitState ?? null,
+      snapshot.daysOpen ?? null,
+      now,
+      now,
+    )
+    .run();
+  return result.meta.changes === 0 ? "exists" : "created";
+}
+
 export const leads = new Hono<{ Bindings: Cloudflare.Env }>();
 
 leads.get("/", async (c) => {
@@ -99,25 +126,9 @@ leads.post("/", async (c) => {
   if (parsed.error) return c.json(parsed.error, 400);
   const { apn, snapshot } = parsed.data;
   const now = new Date().toISOString();
-
-  const result = await c.env.DB.prepare(
-    `INSERT OR IGNORE INTO leads
-       (apn, status, notes, snapshot, lat, lon, roof_age_years, permit_state, days_open, created_at, updated_at)
-     VALUES (?, 'new', '', ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      apn,
-      JSON.stringify(snapshot),
-      snapshot.lat,
-      snapshot.lon,
-      snapshot.roofAgeYears ?? null,
-      snapshot.permitState ?? null,
-      snapshot.daysOpen ?? null,
-      now,
-      now,
-    )
-    .run();
-  if (result.meta.changes === 0) return c.json({ error: "lead exists" }, 409);
+  if ((await insertLead(c.env.DB, parsed.data, now)) === "exists") {
+    return c.json({ error: "lead exists" }, 409);
+  }
 
   const record: LeadRecord = {
     apn,
