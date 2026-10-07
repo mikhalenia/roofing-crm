@@ -1,9 +1,9 @@
 # Limitations
 
-What the Roofing CRM cannot answer, why, and what happens at the edges. Data facts are from the
-pipeline snapshot run `2026-10-07T17-10-54Z` (manifest CID
-`bafybeidav5d5sigbbrvfhaexjxa6nqszyfmcpscyhqpnuv65hribw7y4jq`) served by
-https://scc-pipeline-api.mikhalenia-a.workers.dev. This repository does not ingest or store county data.
+What the Roofing CRM cannot answer, why, and what happens at the edges. The app reads the live
+snapshot reported by `/health` on https://scc-pipeline-api.mikhalenia-a.workers.dev (run
+2026-10-07T18-31-50Z at the time of writing); the counts below were measured on run
+2026-10-07T17-10-54Z. This repository does not ingest or store county data.
 
 ## Dataset
 
@@ -23,11 +23,13 @@ https://scc-pipeline-api.mikhalenia-a.workers.dev. This repository does not inge
 - **"Open for many years" is mostly "stalled".** Of the 7,751 roofing permits, 6,707 are
   `expired_unfinaled` (expired without a final inspection), 1,017 are `open` and 27 are `finaled`. A
   long "days open" figure usually means the permit was never finaled, not that work is in progress.
-  The UI and agent label these `expired_unfinaled` / "Stalled expired" and never call them active.
+  The UI and agent label them "Stalled", or "Expired (work approved)" when every approval was
+  completed (the pipeline's stalled filter excludes those, so most aged-roof rows show this label),
+  and never call them active.
 - **Owner names come from permits only.** There is no mailing address, no ownership transfer date and
   no assessor owner of record. The "Owners" section shows who appeared on a permit and the date observed.
 - **CSLB licenses are not matched.** Contractor names come from permits; the license number and status
-  columns are mostly empty (the deployed drawer shows `CSLB - (-)`).
+  columns are mostly empty (the drawer shows "CSLB license: not matched").
 - **Search results are capped at 200 per endpoint** (`limit: 200` in `apps/web/src/state/search.ts`,
   same default for the agent). A count of "200" means "at least 200", not a total. The results table
   then says "Showing N of at least N", and the agent tools report `fetched`/`capped` so the answer says
@@ -55,9 +57,9 @@ https://scc-pipeline-api.mikhalenia-a.workers.dev. This repository does not inge
 | Workers AI | 10,000 neurons per day | Model calls fail; `POST /agent` returns 502 with the error text and the Agent page shows it. The map, search, drawer and leads keep working. |
 | D1 writes | 100,000 rows written per day | Lead create, edit, delete and rate-limit counters fail. Prospect search and the property drawer (pipeline API) are unaffected. |
 
-The D1 write limit was hit on 2026-10-07 during testing. Writes resume 2026-10-08 00:00 UTC, so the
-e2e steps "07 save as lead" and "08 leads page" and their screenshots are pending a re-run
-(see `docs/acceptance-criteria.md`).
+The account moved to Workers Paid on 2026-10-07, after the D1 free-tier daily limits were hit during
+testing (writes, then pipeline reads). The free-tier figures above stay as the design limits: the app
+must keep working within them.
 
 ## Agent honesty rules and quality caveats
 
@@ -75,10 +77,14 @@ Known caveats:
 - **Thin prose.** Llama 3.3 70B (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) tends to write two or
   three sentences plus a `SOURCES:` line, repeating the identifiers the UI already shows as chips. It
   can report the fetch cap as the total ("200 properties") despite the prompt rule about "N matched;
-  showing the first 25" (visible in `apps/web-e2e/screenshots/09-agent.png`).
+  showing the first 25"; the UI header ("Sources · N of at least M") states the real numbers, and
+  "at least" is removed in code when no search was capped.
 - **Sources-only answers.** The agent returned a `SOURCES:`-only answer once in production. A repair step
   (commit 6c1e8f9) now makes one tool-free call that rewrites the answer from the tool results already
-  fetched. It is unit-tested but **not yet verified live**.
+  fetched. It is unit-tested; the UI also strips the trailing SOURCES line from every answer.
+- **Bad tool arguments.** Llama 3.3 sometimes sends a nested call or no coordinates. The search tools
+  reject them with "invalid coordinates; call geocode_place first", and the model geocodes and retries
+  (seen live on 2026-10-07).
 - **Not embedding-based RAG.** Retrieval is tool calls over the pipeline API (structured geo and
   permit queries) with grounded citations. There is no vector index, so questions that need fuzzy
   matching of work descriptions are not supported.
