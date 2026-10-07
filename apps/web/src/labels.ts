@@ -2,26 +2,23 @@
  * Every user-facing name for a pipeline or CRM value. No raw token (expired_unfinaled,
  * final_date, aged_roof, ...) may reach the screen; route all display text through here.
  */
-import type { AgentResponse, PipelineLead } from "@crm/contracts";
+import {
+  CONFIDENCE_LABELS,
+  PERMIT_STATE_HINTS,
+  PERMIT_STATE_LABELS,
+  ROOF_BASIS_LABELS,
+  SIGNAL_LABELS,
+  replaceRawTokens,
+  type AgentResponse,
+  type PipelineLead,
+} from "@crm/contracts";
 
-const PERMIT_STATE: Record<string, string> = { open: "Open", expired_unfinaled: "Stalled", finaled: "Completed" };
-const PERMIT_HINT: Record<string, string> = {
-  open: "Permit is still active",
-  expired_unfinaled: "Permit expired without a final inspection",
-  finaled: "Permit passed its final inspection",
-};
-const ROOF_BASIS: Record<string, string> = {
-  final_date: "final inspection date",
-  approval_complete_issue_date: "approval completed (issue date)",
-};
-const CONFIDENCE: Record<string, string> = { high: "high confidence", medium: "estimated" };
+const PERMIT_STATE = PERMIT_STATE_LABELS;
+const PERMIT_HINT = PERMIT_STATE_HINTS;
+const ROOF_BASIS = ROOF_BASIS_LABELS;
+const CONFIDENCE = CONFIDENCE_LABELS;
 const LEAD_STATUS: Record<string, string> = { new: "New", contacted: "Contacted", qualified: "Qualified", lost: "Lost" };
-const SIGNAL: Record<string, string> = {
-  aged_roof: "Aged roof",
-  open_permit: "Open permit",
-  stalled_permit: "Stalled permit",
-  other: "Other",
-};
+const SIGNAL: Record<string, string> = { ...SIGNAL_LABELS, other: "Other" };
 const TOOL: Record<string, string> = {
   find_aged_roofs: "Searched aged roofs",
   find_open_roofing_permits: "Searched roofing permits",
@@ -102,19 +99,11 @@ export function hoverLines(l: PipelineLead): [string, string, string] {
   return [l.situsAddress ?? l.apn, roof, permit];
 }
 
-const RAW_TOKENS: ReadonlyArray<[RegExp, string]> = [
-  [/["'`]?\bexpired_unfinaled\b["'`]?/g, "stalled"],
-  [/["'`]?\bapproval_complete_issue_date\b["'`]?/g, "approval completed (issue date)"],
-  [/["'`]?\bfinal_date\b["'`]?/g, "final inspection date"],
-  [/["'`]?\baged_roof\b["'`]?/g, "aged roof"],
-  [/["'`]?\bopen_permit\b["'`]?/g, "open permit"],
-  [/["'`]?\bstalled_permit\b["'`]?/g, "stalled permit"],
-];
-
 /** The answer as shown: raw tokens replaced and the trailing "SOURCES: ..." line removed (sources are chips). */
 export function displayAnswer(answer: string): string {
-  const prose = answer.replace(/(^|\n)[ \t]*SOURCES:[^\n]*\s*$/i, "");
-  return RAW_TOKENS.reduce((t, [re, name]) => t.replace(re, name), prose).trim();
+  // Case-sensitive: the prompt mandates "SOURCES:", and a prose line "Sources: ..." must stay.
+  const prose = answer.replace(/(^|\n)[ \t]*SOURCES:[^\n]*\s*$/, "");
+  return replaceRawTokens(prose).trim();
 }
 
 type ToolCall = AgentResponse["toolCalls"][number];

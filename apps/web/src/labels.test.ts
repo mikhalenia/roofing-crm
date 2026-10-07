@@ -78,6 +78,12 @@ describe("labels", () => {
       "Permit 1 is stalled, roof by final inspection date.",
     );
     expect(displayAnswer("No sources here.")).toBe("No sources here.");
+    expect(displayAnswer("Two roofs match.\nSources: County of Santa Clara parcels.")).toBe(
+      "Two roofs match.\nSources: County of Santa Clara parcels.",
+    );
+    expect(displayAnswer("They have expired, unfinaled permits.\nSOURCES: A1")).toBe(
+      "They have stalled (expired without a final inspection) permits.",
+    );
   });
 
   it("humanizes tool calls", () => {
