@@ -76,7 +76,7 @@ export function AgentPanel() {
       {error && <Alert severity="error">{error}</Alert>}
       {result && (
         <>
-          <Box>
+          <Box data-testid="agent-tool-calls">
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Tool calls</Typography>
             {result.toolCalls.length === 0 && <Typography variant="body2">None.</Typography>}
             {result.toolCalls.map((t, i) => (
@@ -90,9 +90,9 @@ export function AgentPanel() {
               </Box>
             ))}
           </Box>
-          <Typography sx={{ whiteSpace: "pre-wrap" }}>{result.answer}</Typography>
+          <Typography data-testid="agent-answer" sx={{ whiteSpace: "pre-wrap" }}>{result.answer}</Typography>
           {result.sources.length > 0 && (
-            <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
+            <Stack data-testid="agent-sources" sx={{ flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
               {result.sources.map((s) => (
                 <Chip
                   key={`${s.apn}:${s.permitNumber ?? ""}`}
