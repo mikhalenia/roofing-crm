@@ -27,6 +27,8 @@ export function trimLead(l: PipelineLead) {
     roofAgeAnchor: l.roofAgeAnchor ?? null,
     permitNumber: l.permitNumber ?? null,
     permitState: l.permitState ?? null,
+    // expired_unfinaled + approvalsComplete true = "Expired (work approved)", not stalled.
+    approvalsComplete: l.approvalsComplete ?? null,
     daysOpen: l.daysOpen ?? null,
     contractorCompany: l.contractorCompany ?? null,
     cslbLicenseNumber: l.cslbLicenseNumber ?? null,
@@ -49,9 +51,38 @@ const PropertyDetail = z.looseObject({
 const num = () => z.coerce.number();
 const bool = z.preprocess((v) => (v === "true" ? true : v === "false" ? false : v), z.boolean());
 
-const lat = num().describe("Latitude of the search center (Santa Clara County, about 37.0-37.5)");
-const lon = num().describe("Longitude of the search center (about -122.3 to -121.2)");
-const radiusMiles = num().min(0.5).max(25).optional().describe("Search radius in miles, default 5");
+/**
+ * Coordinates and radius are validated inside the tools, not by Zod, so a bad value (a nested
+ * call, a string, an out-of-range number) comes back as an error the model can read and act on
+ * instead of an opaque input-validation failure or a pipeline 400.
+ */
+const loose = (v: unknown) => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : Number.NaN;
+  return Number.isFinite(n) ? n : null;
+};
+const looseNum = () => z.preprocess(loose, z.number().nullable());
+
+const lat = looseNum().describe("Latitude of the search center from geocode_place or the map (Santa Clara County, about 37.0-37.5)");
+const lon = looseNum().describe("Longitude of the search center from geocode_place or the map (about -122.3 to -121.2)");
+const radiusMiles = looseNum().optional().describe("Search radius in miles, 0.1-50, default 5");
+
+export const INVALID_COORDINATES = "invalid coordinates; call geocode_place first";
+
+/** The reason a search area is unusable, or null when lat, lon and radius are valid. */
+export function invalidArea(a: { lat: unknown; lon: unknown; radiusMiles?: unknown }): string | null {
+  const la = loose(a.lat);
+  const lo = loose(a.lon);
+  if (la == null || lo == null || la < -90 || la > 90 || lo < -180 || lo > 180) {
+    const shown = (v: unknown) => (typeof v === "object" && v !== null ? "an object" : String(v));
+    return `${INVALID_COORDINATES} (got lat ${shown(a.lat)}, lon ${shown(a.lon)})`;
+  }
+  const r = a.radiusMiles == null ? null : loose(a.radiusMiles);
+  if (a.radiusMiles != null && (r == null || r < 0.1 || r > 50)) {
+    return `invalid radius ${String(a.radiusMiles)}; use 0.1 to 50 miles`;
+  }
+  return null;
+}
+
 const limit = num().int().min(1).max(500).optional().describe("Max records to fetch, default 200");
 
 export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore: LeadStore) {
@@ -72,9 +103,21 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
 
   async function search(
     path: string,
-    params: Record<string, string | number | boolean | undefined>,
+    params: Record<string, unknown> & { lat: unknown; lon: unknown },
   ) {
-    const body = PipelineSearchResponse.parse(await getJson(path, params));
+    const bad = invalidArea(params);
+    if (bad) return { count: 0, fetched: 0, error: bad };
+    let raw: unknown;
+    try {
+      raw = await getJson(path, params as Record<string, string | number | boolean | undefined>);
+    } catch (e) {
+      // The pipeline answers 400 for a point outside Santa Clara County.
+      if (e instanceof Error && / 400 /.test(e.message)) {
+        return { count: 0, fetched: 0, error: `${INVALID_COORDINATES}: the point is outside Santa Clara County` };
+      }
+      throw e;
+    }
+    const body = PipelineSearchResponse.parse(raw);
     const seen = body.items.slice(0, MAX_ITEMS);
     // Only the records the model actually saw may become leads.
     for (const item of seen) returned.set(item.apn, item);

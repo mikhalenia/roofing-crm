@@ -9,7 +9,7 @@ import {
   resolvedFiltersFromCalls,
   type Source,
 } from "./postfilter";
-import { SYSTEM_PROMPT } from "./prompt";
+import { OUT_OF_SCOPE, SYSTEM_PROMPT } from "./prompt";
 import { type AgentTools, buildTools, type LeadStore } from "./tools";
 
 export const MODEL_ID = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -102,6 +102,20 @@ function sourcesOf(call: StepCall, output: unknown, answer: string): Source[] {
   return rows;
 }
 
+export const OUT_OF_SCOPE_FALLBACK =
+  "I can only help with roofing leads in Santa Clara County: aged roofs, roofing permits and contractors near a place, and saving properties as leads.";
+
+const COUNTED = "properties|property|roofs|permits|matches|results|records|homes|parcels|leads";
+
+/**
+ * Safety net for prompt rule 9: "at least N <things>" is only true when a search hit its fetch
+ * limit. Thresholds ("roofs at least 15 years old") are left alone.
+ */
+export function uncapCounts(answer: string, toolCalls: AgentResponse["toolCalls"]): string {
+  if (toolCalls.some((t) => t.capped === true)) return answer;
+  return answer.replace(new RegExp(`\\bat least (\\d[\\d,]*) (${COUNTED})\\b`, "gi"), "$1 $2");
+}
+
 /** Safety net for prompt rule 5: never show a raw pipeline token to a sales user. */
 export function plainStates(text: string): string {
   return replaceRawTokens(text);
@@ -151,7 +165,18 @@ export async function runAgent(
   };
 
   let result = await generate(base);
-  if (!result.steps.some((s) => s.toolCalls.length > 0)) {
+  const calledTools = result.steps.some((s) => s.toolCalls.length > 0);
+  // Rule 0: an out-of-scope question gets one sentence and no tools.
+  if (!calledTools && result.text.trim().startsWith(OUT_OF_SCOPE)) {
+    const sentence = result.text.trim().slice(OUT_OF_SCOPE.length).split("\n")[0]!.trim();
+    return {
+      answer: sentence || OUT_OF_SCOPE_FALLBACK,
+      toolCalls: [],
+      sources: [],
+      resolvedFilters: null,
+    };
+  }
+  if (!calledTools) {
     result = await generate({ ...base, toolChoice: "required" });
   }
 
@@ -201,10 +226,11 @@ export async function runAgent(
     }
   }
 
+  const worded = uncapCounts(answer, toolCalls);
   return {
-    answer,
+    answer: worded,
     toolCalls,
-    sources: extractSources(answer, returned),
+    sources: extractSources(worded, returned),
     resolvedFilters: resolvedFiltersFromCalls(toolCalls),
   };
 }

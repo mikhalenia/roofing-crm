@@ -5,8 +5,8 @@ import { MockLanguageModelV4 } from "ai/test";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import migration from "../../migrations/0001_leads.sql?raw";
 import app from "../index";
-import { type AgentDeps, NO_ANSWER, runAgent, setAgentDeps } from "./index";
-import { buildTools } from "./tools";
+import { type AgentDeps, NO_ANSWER, OUT_OF_SCOPE_FALLBACK, runAgent, setAgentDeps, uncapCounts } from "./index";
+import { INVALID_COORDINATES, buildTools, invalidArea } from "./tools";
 
 const SNAPSHOT = { runId: "run-1", manifestCid: "bafy-manifest", syncedAt: "2026-10-01T00:00:00Z" };
 
@@ -138,6 +138,7 @@ describe("buildTools", () => {
       roofAgeAnchor: "final_date",
       permitNumber: "P-A-0",
       permitState: "expired_unfinaled",
+      approvalsComplete: null,
       daysOpen: 900,
       contractorCompany: "Acme Roofing",
       cslbLicenseNumber: "123456",
@@ -204,7 +205,93 @@ describe("buildTools", () => {
   });
 });
 
+describe("search tool input checks", () => {
+  it("returns a readable error instead of calling the pipeline with bad coordinates", async () => {
+    const { fn, urls } = stubFetch([pipelineLead("264-12-034")]);
+    const tools = buildTools("https://pipeline.test", fn, leadStore());
+    const nested = await exec(tools.find_aged_roofs, { lat: { tool: "geocode_place", name: "San Jose" }, lon: -121.9 });
+    expect(nested).toMatchObject({ count: 0, fetched: 0 });
+    expect((nested as { error: string }).error).toContain(INVALID_COORDINATES);
+    expect((await exec(tools.find_open_roofing_permits, { lat: 95, lon: -121.9 })) as { error: string }).toMatchObject({
+      error: expect.stringContaining(INVALID_COORDINATES),
+    });
+    expect((await exec(tools.search_properties_in_radius, { lat: 37.3, lon: -121.9, radiusMiles: 60 })) as { error: string }).toMatchObject({
+      error: "invalid radius 60; use 0.1 to 50 miles",
+    });
+    expect(urls).toHaveLength(0);
+    expect(invalidArea({ lat: "37.3", lon: "-121.9", radiusMiles: "0.1" })).toBeNull();
+    expect(invalidArea({ lat: 37.3, lon: -181 })).toContain(INVALID_COORDINATES);
+  });
+
+  it("turns a pipeline 400 (point outside the county) into a readable error", async () => {
+    const tools = buildTools("https://pipeline.test", stubFetch([], 400).fn, leadStore());
+    expect(await exec(tools.find_aged_roofs, { lat: 37, lon: -121 })).toMatchObject({
+      count: 0,
+      error: `${INVALID_COORDINATES}: the point is outside Santa Clara County`,
+    });
+  });
+});
+
 describe("runAgent", () => {
+  it("answers an out-of-scope question in one sentence without tools", async () => {
+    const calls: unknown[] = [];
+    const generate: NonNullable<AgentDeps["generateText"]> = async (opts) => {
+      calls.push(opts);
+      return {
+        text: "OUT_OF_SCOPE: I can only help with roofing leads in Santa Clara County, such as aged roofs and roofing permits.\nextra",
+        steps: [{ toolCalls: [], toolResults: [], content: [] }],
+      };
+    };
+    const res = await runAgent(
+      env,
+      { question: "What is the weather tomorrow?", context: null },
+      { generateText: generate, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(calls).toHaveLength(1);
+    expect(res).toEqual({
+      answer: "I can only help with roofing leads in Santa Clara County, such as aged roofs and roofing permits.",
+      toolCalls: [],
+      sources: [],
+      resolvedFilters: null,
+    });
+    expect(OUT_OF_SCOPE_FALLBACK).toMatch(/^I can only help/);
+  });
+
+  it("drops \"at least\" from counts unless a search was capped", async () => {
+    const { fn: fetcher } = stubFetch([pipelineLead("264-12-034"), pipelineLead("264-12-035")]);
+    const gen = scripted(
+      [{ toolName: "find_aged_roofs", input: AGED }],
+      "At least 2 roofs match, with roofs at least 20 years old: 264-12-034 and 264-12-035.\nSOURCES: 264-12-034",
+    );
+    const res = await runAgent(
+      env,
+      { question: "Old roofs?", context: null },
+      { generateText: gen.fn, fetch: fetcher, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.answer).toContain("2 roofs match, with roofs at least 20 years old");
+    expect(uncapCounts("at least 200 properties", [{ name: "find_aged_roofs", args: {}, resultCount: 200, capped: true }])).toBe(
+      "at least 200 properties",
+    );
+    expect(uncapCounts("At least 5 permits", [{ name: "find_open_roofing_permits", args: {}, resultCount: 5, capped: false }])).toBe(
+      "5 permits",
+    );
+  });
+
+  it("tells the model about out-of-scope replies, geocoding first, radius wording and approved expired permits", async () => {
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
+    await runAgent(
+      env,
+      { question: "Old roofs?", context: null },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    const system = gen.seen[0]!.system;
+    expect(system).toContain("OUT_OF_SCOPE:");
+    expect(system).toMatch(/never a nested call/);
+    expect(system).toMatch(/within N miles of\s+<place>", never "in <place>"/);
+    expect(system).toMatch(/never write "at least"/);
+    expect(system).toContain('"Expired (work approved)"');
+  });
+
   it("returns sources only for returned identifiers, counts, and resolved filters", async () => {
     const { fn: fetcher } = stubFetch([pipelineLead("264-12-034"), pipelineLead("264-12-035")]);
     const gen = scripted(
@@ -271,7 +358,9 @@ describe("runAgent", () => {
       { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
     );
     expect(res.answer).not.toContain("expired_unfinaled");
-    expect(res.answer).toContain("Permit P-1 is stalled. Another is stalled too.");
+    expect(res.answer).toContain(
+      "Permit P-1 is expired without a final inspection. Another is expired without a final inspection too.",
+    );
     expect(gen.seen[0]!.system).toContain('expired_unfinaled -> "Stalled"');
     expect(gen.seen[0]!.system).toMatch(/never the raw tool values/);
     expect(gen.seen[0]!.system).toContain('Never write "unfinaled"');
@@ -283,8 +372,10 @@ describe("runAgent", () => {
     const { plainStates } = await import("./index");
     expect(
       plainStates("final_date, approval_complete_issue_date, aged_roof, open_permit, stalled_permit, finaled, 'expired_unfinaled'"),
-    ).toBe("final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, stalled");
-    expect(plainStates("expired, unfinaled permits")).toBe("stalled (expired without a final inspection) permits");
+    ).toBe(
+      "final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, expired without a final inspection",
+    );
+    expect(plainStates("expired, unfinaled permits")).toBe("expired without a final inspection permits");
   });
 
   it("reports capped and shown for search tool calls", async () => {
