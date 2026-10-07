@@ -92,7 +92,12 @@ export function ProspectPage() {
           <Box sx={{ width: { xs: "100vw", sm: AGENT_WIDTH }, p: 2 }}>{panel}</Box>
         </Drawer>
       )}
-      <PropertyDrawer apn={selected} snapshot={state.results.find((r) => r.lead.apn === selected)?.lead} onClose={() => setSelected(null)} />
+      <PropertyDrawer
+        apn={selected}
+        snapshot={state.results.find((r) => r.lead.apn === selected)?.lead}
+        onClose={() => setSelected(null)}
+        onAsk={askAbout}
+      />
     </Box>
   );
 }

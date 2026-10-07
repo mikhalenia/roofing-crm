@@ -11,11 +11,14 @@ const ROOF_BASIS: Record<string, string> = {
   approval_complete_issue_date: "completed-approval issue date",
 };
 
-export const permitStateLabel = (s: PipelineLead["permitState"]) => (s ? (PERMIT_STATE[s] ?? s) : "No permit");
+export const roofBasisLabel = (anchor: string | null | undefined) =>
+  (anchor && ROOF_BASIS[anchor]) ?? "unknown basis";
+
+export const permitStateLabel = (s: string | null | undefined) => (s ? (PERMIT_STATE[s] ?? s) : "No permit");
 
 export function roofAgeText(l: PipelineLead): string {
   if (l.roofAgeYears == null) return "Roof age unknown";
-  const basis = l.roofAgeAnchor ? ROOF_BASIS[l.roofAgeAnchor] : null;
+  const basis = l.roofAgeAnchor ? roofBasisLabel(l.roofAgeAnchor) : null;
   return `Roof ${l.roofAgeYears} yrs${basis ? ` (based on ${basis})` : ""}`;
 }
 

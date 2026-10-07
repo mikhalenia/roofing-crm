@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PropertyDrawer } from "./PropertyDrawer";
 
@@ -38,7 +38,9 @@ describe("PropertyDrawer", () => {
       expect(screen.getByText(t)).toBeInTheDocument();
     }
     expect(screen.getByText(/22 yrs/)).toBeInTheDocument();
-    expect(screen.getByText(/BLD-1 · open/)).toBeInTheDocument();
+    expect(screen.getByText("BLD-1 · Open · issued 2020-01-01 · 700 days open · Re-roof")).toBeInTheDocument();
+    expect(screen.queryByText(/final -/)).toBeNull();
+    expect(screen.getByText(/based on the final inspection date, high confidence, permit BLD-0/)).toBeInTheDocument();
     expect(screen.getByText(/Acme Roofing · CSLB 123456 \(active\) · BBB: not available \(no public source\)/)).toBeInTheDocument();
     expect(screen.getByText(/Jane Doe · observed 2025-02-01/)).toBeInTheDocument();
     expect(screen.getByText(/manifest CID bafyMANIFEST/)).toBeInTheDocument();
@@ -91,5 +93,39 @@ describe("PropertyDrawer", () => {
     expect(btn).toBeDisabled();
     fireEvent.click(btn);
     expect(crm.createLead).not.toHaveBeenCalled();
+  });
+
+  it("has a header with the address, APN, close button and actions", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_u: string) => new Response(JSON.stringify(detail))));
+    const onClose = vi.fn();
+    const onAsk = vi.fn();
+    render(<PropertyDrawer apn="A1" onClose={onClose} onAsk={onAsk} />);
+    const header = within(await screen.findByRole("banner"));
+    expect(header.getByRole("heading", { name: "1 Main St" })).toBeInTheDocument();
+    expect(header.getByText("APN A1")).toBeInTheDocument();
+    expect(await header.findByRole("button", { name: "Save as lead" })).toBeEnabled();
+    fireEvent.click(header.getByRole("button", { name: "Ask agent" }));
+    expect(onAsk).toHaveBeenCalledWith({ apn: "A1", situsAddress: "1 Main St" });
+    fireEvent.click(header.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("maps raw values to readable labels and truncates the source link", async () => {
+    const raw = {
+      ...detail,
+      permits: [{ ...detail.permits[0], permitState: "expired_unfinaled", finalDate: null }],
+      roofAge: { ...detail.roofAge, anchor: "approval_complete_issue_date", confidence: "medium" },
+      contractors: [{ contractorId: "c2", companyName: "Bob Roofing", cslbLicenseNumber: null, cslbStatus: null }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (_u: string) => new Response(JSON.stringify(raw))));
+    render(<PropertyDrawer apn="A1" onClose={() => undefined} />);
+    expect(await screen.findByText(/BLD-1 · Stalled \(expired, no final inspection\) · issued/)).toBeInTheDocument();
+    expect(screen.queryByText(/expired_unfinaled/)).toBeNull();
+    expect(screen.getByText(/based on the completed-approval issue date, medium confidence/)).toBeInTheDocument();
+    expect(screen.queryByText(/approval_complete_issue_date/)).toBeNull();
+    expect(screen.getByText(/Bob Roofing · CSLB license: not matched · BBB: not available \(no public source\)/)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "https://src.test/p" });
+    expect(link).toHaveAttribute("title", "https://src.test/p");
+    expect(link).toHaveStyle({ textOverflow: "ellipsis" });
   });
 });

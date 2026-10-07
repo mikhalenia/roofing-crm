@@ -25,7 +25,7 @@ interface Props {
 
 export function AgentPanel({ embedded = false, onClose }: Props) {
   const { state, dispatch } = useSearch();
-  const { agent, setQuestion, send } = useAgent();
+  const { agent, setQuestion, send, askAbout } = useAgent();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
   const { question, target, loading, error, result, answeredTarget } = agent;
@@ -128,7 +128,7 @@ export function AgentPanel({ embedded = false, onClose }: Props) {
           </Box>
         </>
       )}
-      <PropertyDrawer apn={selected} pin={state.pin} onClose={() => setSelected(null)} />
+      <PropertyDrawer apn={selected} pin={state.pin} onClose={() => setSelected(null)} onAsk={askAbout} />
     </Stack>
   );
 }

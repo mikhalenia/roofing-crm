@@ -7,6 +7,7 @@ import {
   Divider,
   Drawer,
   IconButton,
+  Link,
   Snackbar,
   Stack,
   Tooltip,
@@ -15,6 +16,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
+import { permitStateLabel, roofBasisLabel } from "../state/labels";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { useLeadSave } from "./useLeadSave";
 
@@ -72,11 +74,14 @@ export function PropertyDrawer({
   snapshot,
   pin,
   onClose,
+  onAsk,
 }: {
   apn: string | null;
   snapshot?: PipelineLead | undefined;
   pin?: { lat: number; lon: number } | undefined;
   onClose: () => void;
+  /** Shows "Ask agent" in the header. */
+  onAsk?: ((lead: Pick<PipelineLead, "apn" | "situsAddress">) => void) | undefined;
 }) {
   const { isKnown, saving, saved, clearSaved, error: saveError, save: saveLead } = useLeadSave(apn);
 
@@ -117,31 +122,59 @@ export function PropertyDrawer({
   const p = detail?.property;
   const noCoords = p != null && snapshot?.apn !== p.apn && (p.lat == null || p.lon == null);
   return (
-    <Drawer anchor="right" open={apn != null} onClose={onClose}>
-      <Box sx={{ width: { xs: "100vw", sm: 440 }, p: 2 }} role="complementary" aria-label="Property details">
-        <Stack sx={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h6">{p?.situsAddress ?? apn}</Typography>
-          <IconButton aria-label="Close" onClick={onClose}><CloseIcon /></IconButton>
-        </Stack>
+    <Drawer
+      anchor="right"
+      open={apn != null}
+      onClose={onClose}
+      // Start below the fixed AppBar so the header and its actions stay visible.
+      slotProps={{ paper: { sx: { top: { xs: 56, sm: 64 }, height: { xs: "calc(100% - 56px)", sm: "calc(100% - 64px)" } } } }}
+    >
+      <Box sx={{ width: { xs: "100vw", sm: 440 } }} role="complementary" aria-label="Property details">
+        <Box
+          component="header"
+          sx={{ position: "sticky", top: 0, zIndex: 1, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider", px: 2, py: 1.5 }}
+        >
+          <Stack sx={{ flexDirection: "row", alignItems: "flex-start", gap: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="h6" component="h2" sx={{ lineHeight: 1.3 }}>{p?.situsAddress ?? apn}</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>APN {p?.apn ?? apn}</Typography>
+            </Box>
+            <IconButton aria-label="Close" onClick={onClose} edge="end"><CloseIcon /></IconButton>
+          </Stack>
+          {detail && p && (
+            <Stack sx={{ flexDirection: "row", justifyContent: "flex-end", gap: 1, mt: 1 }}>
+              {onAsk && (
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    onAsk({ apn: p.apn, situsAddress: p.situsAddress ?? null });
+                    onClose();
+                  }}
+                >
+                  Ask agent
+                </Button>
+              )}
+              <Tooltip title={noCoords ? "No coordinates for this property" : ""}>
+                <span>
+                  <Button
+                    variant="contained"
+                    disabled={saving || isKnown(p.apn) || noCoords}
+                    onClick={() => save(detail)}
+                  >
+                    {isKnown(p.apn) ? "Already a lead" : "Save as lead"}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          )}
+        </Box>
+        <Box sx={{ p: 2 }}>
         {!detail && !error && <CircularProgress size={24} />}
         {error && <Alert severity="error">{error}</Alert>}
         {detail && p && (
           <>
-            <Tooltip title={noCoords ? "No coordinates for this property" : ""}>
-              <span>
-                <Button
-                  variant="contained"
-                  disabled={saving || isKnown(p.apn) || noCoords}
-                  onClick={() => save(detail)}
-                  sx={{ my: 1 }}
-                >
-                  {isKnown(p.apn) ? "Already a lead" : "Save as lead"}
-                </Button>
-              </span>
-            </Tooltip>
-            {saveError && <Alert severity="error">{saveError}</Alert>}
+            {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
             <Section title="Property">
-              <Typography variant="body2">APN {p.apn}</Typography>
               <Typography variant="body2">
                 {dash(p.situsAddress)}, {dash(p.situsCity)} {p.situsZip ?? ""}
               </Typography>
@@ -150,9 +183,9 @@ export function PropertyDrawer({
             <Section title="Roof age basis">
               {detail.roofAge ? (
                 <Typography variant="body2">
-                  {dash(detail.roofAge.roofAgeYears)} yrs (roof date {dash(detail.roofAge.roofDate)}) based on{" "}
-                  {dash(detail.roofAge.anchor)}, {dash(detail.roofAge.confidence)} confidence, permit{" "}
-                  {dash(detail.roofAge.permitNumber)}
+                  {dash(detail.roofAge.roofAgeYears)} yrs (roof date {dash(detail.roofAge.roofDate)}), based on the{" "}
+                  {roofBasisLabel(detail.roofAge.anchor)}, {detail.roofAge.confidence ?? "unknown"} confidence
+                  {detail.roofAge.permitNumber ? `, permit ${detail.roofAge.permitNumber}` : ""}
                 </Typography>
               ) : (
                 <Typography variant="body2">No roof age on record.</Typography>
@@ -161,9 +194,17 @@ export function PropertyDrawer({
             <Section title="Permits">
               {detail.permits.length === 0 && <Typography variant="body2">None.</Typography>}
               {detail.permits.map((pm) => (
-                <Typography key={pm.permitNumber} variant="body2">
-                  {pm.permitNumber} · {dash(pm.permitState)} · issued {dash(pm.issueDate)} · final{" "}
-                  {dash(pm.finalDate)} · {dash(pm.daysOpen)} days open · {dash(pm.workDescription)}
+                <Typography key={pm.permitNumber} variant="body2" sx={{ mb: 0.5 }}>
+                  {[
+                    pm.permitNumber,
+                    pm.permitState ? permitStateLabel(pm.permitState) : "state unknown",
+                    pm.issueDate && `issued ${pm.issueDate}`,
+                    pm.finalDate && `final ${pm.finalDate}`,
+                    pm.daysOpen != null && `${pm.daysOpen} days open`,
+                    pm.workDescription,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </Typography>
               ))}
             </Section>
@@ -171,8 +212,11 @@ export function PropertyDrawer({
               {detail.contractors.length === 0 && <Typography variant="body2">None on record.</Typography>}
               {detail.contractors.map((c, i) => (
                 <Typography key={c.contractorId ?? i} variant="body2">
-                  {dash(c.companyName)} · CSLB {dash(c.cslbLicenseNumber)} ({dash(c.cslbStatus)}) · BBB: not
-                  available (no public source)
+                  {c.companyName ?? "Unknown company"} ·{" "}
+                  {c.cslbLicenseNumber
+                    ? `CSLB ${c.cslbLicenseNumber}${c.cslbStatus ? ` (${c.cslbStatus})` : ""}`
+                    : "CSLB license: not matched"}{" "}
+                  · BBB: not available (no public source)
                 </Typography>
               ))}
             </Section>
@@ -192,13 +236,30 @@ export function PropertyDrawer({
                   <ProvenanceChip key={pm.permitNumber} label={`Permit ${pm.permitNumber}`} url={pm.sourceUrl} version={pm.sourceVersion} fetchedAt={pm.fetchedAt} />
                 ))}
               </Stack>
+              <Typography variant="caption" component="div" sx={{ mt: 1 }}>
+                Source:{" "}
+                {p.sourceUrl ? (
+                  <Link
+                    href={p.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={p.sourceUrl}
+                    sx={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}
+                  >
+                    {p.sourceUrl}
+                  </Link>
+                ) : (
+                  "-"
+                )}
+              </Typography>
               <Typography variant="caption" component="div">
-                Source: {dash(p.sourceUrl)} · version {dash(p.sourceVersion)} · fetched {dash(p.fetchedAt)} ·
-                manifest CID {dash(detail.snapshot.manifestCid)}
+                Version {dash(p.sourceVersion)} · fetched {dash(p.fetchedAt)} · manifest CID{" "}
+                {dash(detail.snapshot.manifestCid)}
               </Typography>
             </Section>
           </>
         )}
+        </Box>
       </Box>
       <Snackbar open={saved} autoHideDuration={4000} onClose={clearSaved} message="Saved as lead" />
     </Drawer>

@@ -24,7 +24,7 @@ interface Ctx {
   agent: AgentState;
   setOpen: (open: boolean) => void;
   setQuestion: (q: string, target?: AgentTarget | null) => void;
-  askAbout: (lead: PipelineLead) => void;
+  askAbout: (lead: Pick<PipelineLead, "apn" | "situsAddress">) => void;
   send: (map: { lat: number; lon: number; radiusMiles: number }) => void;
 }
 
@@ -54,7 +54,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       setAgent((a) => ({ ...a, question, ...(target !== undefined && { target }) })),
     [],
   );
-  const askAbout = useCallback((l: PipelineLead) => {
+  const askAbout = useCallback((l: Pick<PipelineLead, "apn" | "situsAddress">) => {
     const target: AgentTarget = { apn: l.apn, ...(l.situsAddress ? { address: l.situsAddress } : {}) };
     setAgent((a) => ({ ...a, open: true, question: askAboutQuestion(l), target }));
   }, []);
