@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
@@ -43,5 +43,20 @@ describe("App", () => {
     const campaigns = screen.getByText("Campaigns").closest("[aria-disabled='true']");
     expect(campaigns).not.toBeNull();
     expect(await screen.findByRole("button", { name: "Data unavailable" })).toBeInTheDocument();
+  });
+
+  it("turns the sidebar into a menu on narrow screens", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() })),
+    );
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+    expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    expect(await screen.findByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 });

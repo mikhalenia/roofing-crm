@@ -32,7 +32,9 @@ export function DataStatus({ snapshot, error }: Props) {
           sx={{ gap: 1, px: 1.5, py: 0.5, borderRadius: 4, bgcolor: "rgba(255,255,255,0.14)", color: "inherit", fontSize: 13 }}
         >
           <Dot color={error ? "#ef5350" : snapshot ? "#66bb6a" : "#bdbdbd"} />
-          {label}
+          <Box component="span" sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: { xs: 170, sm: "none" } }}>
+            {label}
+          </Box>
         </ButtonBase>
       </Tooltip>
       <Popover

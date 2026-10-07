@@ -1,7 +1,12 @@
+import { useState } from "react";
+import MenuIcon from "@mui/icons-material/Menu";
 import {
   AppBar,
   Box,
   Drawer,
+  IconButton,
+  useMediaQuery,
+  useTheme,
   List,
   ListItemButton,
   ListItemText,
@@ -28,30 +33,41 @@ const NAV = [
 function Shell() {
   const { pathname } = useLocation();
   const { state } = useSearch();
+  const theme = useTheme();
+  // Below md the sidebar becomes a menu so the map gets the full screen width.
+  const compact = useMediaQuery(theme.breakpoints.down("md"));
+  const [menuOpen, setMenuOpen] = useState(false);
   useHealth();
   return (
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar>
-          <Typography variant="h6" component="h1" sx={{ flex: 1 }}>Roofing CRM</Typography>
+          {compact && (
+            <IconButton color="inherit" edge="start" aria-label="Open menu" onClick={() => setMenuOpen(true)} sx={{ mr: 1 }}>
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h6" component="h1" sx={{ flex: 1, whiteSpace: "nowrap" }}>Roofing CRM</Typography>
           <DataStatus snapshot={state.snapshot} error={state.healthError} />
         </Toolbar>
       </AppBar>
       <Drawer
-        variant="permanent"
-        sx={{ width: NAV_WIDTH, flexShrink: 0, "& .MuiDrawer-paper": { width: NAV_WIDTH, boxSizing: "border-box" } }}
+        variant={compact ? "temporary" : "permanent"}
+        open={compact ? menuOpen : true}
+        onClose={() => setMenuOpen(false)}
+        sx={{ width: compact ? 0 : NAV_WIDTH, flexShrink: 0, "& .MuiDrawer-paper": { width: NAV_WIDTH, boxSizing: "border-box" } }}
       >
         <Toolbar />
         <List component="nav" aria-label="Main">
           {NAV.map((n) => (
-            <ListItemButton key={n.to} component={Link} to={n.to} selected={pathname === n.to}>
+            <ListItemButton key={n.to} component={Link} to={n.to} selected={pathname === n.to} onClick={() => setMenuOpen(false)}>
               <ListItemText primary={n.label} />
             </ListItemButton>
           ))}
         </List>
         <FutureNav />
       </Drawer>
-      <Box component="main" sx={{ flex: 1, minWidth: 0, p: 2 }}>
+      <Box component="main" sx={{ flex: 1, minWidth: 0, p: { xs: 1.5, sm: 2 } }}>
         <Toolbar />
         <Routes>
           <Route path="/" element={<ProspectPage />} />
