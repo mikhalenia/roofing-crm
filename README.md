@@ -104,4 +104,4 @@ The Worker allows CORS from `ALLOWED_ORIGIN` (`https://roofing-crm.pages.dev`) p
 
 ### Deviation from the Golden Path
 
-The Golden Path assumes AWS and CDK. This implementation uses Cloudflare (Pages, Workers, D1, Workers AI) instead, because the sibling pipeline API is already a Cloudflare Worker. The Vercel AI SDK is used for the agent, as required.
+The Golden Path assumes AWS and CDK. This implementation uses Cloudflare (Pages, Workers, D1, Workers AI) instead, for two reasons: zero idle cost on the free tier, and the same stack as the sibling pipeline API, which is already a Cloudflare Worker. The Vercel AI SDK is used for every LLM call, as required.

@@ -46,7 +46,7 @@ pipeline endpoints, so UI and agent always see the same snapshot.
    (default 5). A circle shows the radius. Results render as markers colored by lead
    signal (aged roof / open roofing permit / stalled expired permit / other).
 2. **Filters** — minimum roof age (default 15 years, 5–40), permit state (open / stalled
-   expired / any), minimum permit open duration in years (0–20), roofing only toggle (default
+   expired / any, default any), minimum permit open duration in years (0–20), roofing only toggle (default
    on). Filters map 1:1 to pipeline API parameters.
 3. **Candidate list** — sortable table of matches: address, roof age with anchor and
    confidence, permit number, state, days open, contractor, CSLB license, BBB ("not
@@ -73,12 +73,14 @@ pipeline endpoints, so UI and agent always see the same snapshot.
 ## 5. API (apps/api Worker)
 
 - `GET /leads?minRoofAge&permitState&minOpenYears&lat&lon&radiusMiles` → `Lead[]`
-- `POST /leads` `{apn, snapshot}` → 201 or 409 if exists
+- `GET /leads/:apn` → `Lead` or 404 (the drawer uses it to show "Already a lead" on open)
+- `POST /leads` `{apn, snapshot}` → 201 or 409 if exists (413 if the snapshot exceeds 64 KB)
 - `PATCH /leads/:apn` `{status?, notes?}`
 - `DELETE /leads/:apn`
 - `POST /agent` `{question, context: {lat, lon, radiusMiles} | null}` →
   `{answer, toolCalls[], sources[], resolvedFilters | null}`
-- `GET /health` → `{ok, pipelineApi, manifestCid}`
+- `GET /health` → `{ok, pipelineApi, pipelineOk, manifestCid, runId}` (ids proxied from the
+  pipeline's `/api/health`, 5 s timeout; null with `pipelineOk: false` on failure)
 
 All inputs validated with Zod from `libs/contracts`. CORS restricted to the Pages origin.
 No authentication (public demo); writes are rate-limited per IP with a simple D1 counter.

@@ -29,13 +29,18 @@ https://scc-pipeline-api.mikhalenia-a.workers.dev. This repository does not inge
 - **CSLB licenses are not matched.** Contractor names come from permits; the license number and status
   columns are mostly empty (the deployed drawer shows `CSLB - (-)`).
 - **Search results are capped at 200 per endpoint** (`limit: 200` in `apps/web/src/state/search.ts`,
-  same default for the agent). A count of "200" means "at least 200", not a total.
+  same default for the agent). A count of "200" means "at least 200", not a total. The results table
+  then says "Showing N of at least N", and the agent tools report `fetched`/`capped` so the answer says
+  "at least N matched".
 
 ## Product
 
 - **No authentication and no multi-user model.** Leads are shared by everyone who has the URL.
-  Anyone can edit or delete any lead. `ALLOWED_ORIGIN` is `*` in `apps/api/wrangler.jsonc`, looser than
-  the design spec's "restricted to the Pages origin".
+  Anyone can edit or delete any lead. CORS is an allowlist: `ALLOWED_ORIGIN`
+  (`https://roofing-crm.pages.dev` in `apps/api/wrangler.jsonc`) plus the local dev origins
+  `http://localhost:4200` and `http://localhost:4300` (`apps/api/src/index.ts`). CORS does not stop
+  non-browser clients. Because of the allowlist, the e2e run must use the production origin
+  (`E2E_BASE_URL=https://roofing-crm.pages.dev`); a Pages preview URL fails CORS on `/leads` and `/agent`.
 - **Rate limit: 60 write requests per minute per IP**, counted in D1, applied to `POST/PATCH/DELETE
   /leads` and to `POST /agent` (`apps/api/src/rate-limit.ts`). The 61st returns 429. The limiter fails
   open if D1 is unavailable, so an outage never blocks the API but also removes the limit.

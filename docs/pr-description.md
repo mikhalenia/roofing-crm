@@ -48,7 +48,7 @@ banner shows the error and the last known snapshot, with no fake data.
 ## What works today
 
 - Map centered on San José, county-bounded pin, GPS button, radius 0.5-25 mi.
-- Filters: min roof age (default 15), permit state, min open years, roofing only.
+- Filters: min roof age (default 15), permit state (default Any = open plus stalled), min open years, roofing only.
 - Colored markers (aged roof, open permit, stalled permit) and a sortable candidate table, default longest-open first.
 - Property drawer with permits, contractor, owner observations, roof-age basis and provenance.
 - Leads CRUD with status, notes and filters (code and tests complete; deployed run pending, see Testing).
@@ -78,7 +78,8 @@ Agent caveats: thin prose; one sources-only answer seen in production, a repair 
 
 ## Golden Path deviation
 
-Cloudflare (Pages, Workers, D1, Workers AI) instead of AWS/CDK, for zero idle cost. The Vercel AI SDK
+Cloudflare (Pages, Workers, D1, Workers AI) instead of AWS/CDK, for two reasons: zero idle cost on the
+free tier, and the same stack as the sibling pipeline API, which is already a Cloudflare Worker. The Vercel AI SDK
 is used for every LLM call as required, tool schemas are Zod, and there are no provider SDKs.
 
 ## Testing
