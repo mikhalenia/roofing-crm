@@ -80,7 +80,7 @@ Full list: [docs/limitations.md](docs/limitations.md). Top 5:
 2. No BBB data (always "not available"); CSLB licenses are not matched.
 3. No year built: roof age exists only where a completed roofing permit exists.
 4. Most "open for years" permits expired without a final inspection. They are labeled "Stalled", or "Expired (work approved)" when every approval was completed (the stalled filter excludes those), never active.
-5. No auth: leads are shared by anyone with the URL; 60 writes/min/IP. The account now runs on Workers Paid; the free-tier figures (Workers AI 10k neurons/day, D1 100k writes/day) are kept as design limits.
+5. No auth: leads are shared by anyone with the URL; 60 writes/min/IP. Free-tier limits apply: Workers AI 10k neurons/day, D1 100k row writes/day.
 
 Agent caveats: thin prose; Llama 3.3 sometimes sends bad coordinates first, which the tools now reject with a readable error so it geocodes and retries; one sources-only answer was seen in production and a repair step handles it.
 

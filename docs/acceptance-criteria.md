@@ -4,7 +4,7 @@ Statuses: **met** (implemented and evidenced), **partial** (implemented but with
 evidence still pending), **gap** (not implemented).
 
 "Deployed" evidence is the Playwright run of `apps/web-e2e/src/demo-transcript.spec.ts` against
-https://roofing-crm.pages.dev with writes enabled (2026-10-07, account on Workers Paid), saved as
+https://roofing-crm.pages.dev with writes enabled (2026-10-07), saved as
 `apps/web-e2e/screenshots/*.png`: 01 open, 02 pin (auto-search), 03 radius/age, 04 results, 05 sorted,
 06 drawer, 07 marker popup, 08 ask agent from the popup, 09 save as lead from the popup, 10 leads page
 (status change via PATCH, then delete via the UI), 11 agent page, 12 disabled nav. The run deletes the

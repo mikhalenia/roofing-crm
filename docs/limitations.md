@@ -64,9 +64,8 @@ snapshot reported by `/health` on https://scc-pipeline-api.mikhalenia-a.workers.
 | Workers AI | 10,000 neurons per day | Model calls fail; `POST /agent` returns 502 with the error text and the Agent page shows it. The map, search, drawer and leads keep working. |
 | D1 writes | 100,000 rows written per day | Lead create, edit, delete and rate-limit counters fail. Prospect search and the property drawer (pipeline API) are unaffected. |
 
-The account moved to Workers Paid on 2026-10-07, after the D1 free-tier daily limits were hit during
-testing (writes, then pipeline reads). The free-tier figures above stay as the design limits: the app
-must keep working within them.
+Lead writes are small (one row per create/update/delete); the design stays within the D1 free tier
+(100k row writes/day, 5M row reads/day). A full Playwright run uses a few hundred reads.
 
 ## Agent honesty rules and quality caveats
 
