@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PipelineLead } from "@crm/contracts";
-import { divIcon, type LeafletEventHandlerFnMap, type Marker as LeafletMarker } from "leaflet";
+import {
+  divIcon,
+  type CircleMarker as LeafletCircleMarker,
+  type LeafletEventHandlerFnMap,
+  type LeafletMouseEvent,
+  type Map as LeafletMap,
+  type Marker as LeafletMarker,
+} from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import type { Focus, ResultRow } from "../state/search";
 import { hoverLines } from "../labels";
-import { DENSE_MARKERS, PIN_COLOR, markerStyle } from "./mapStyle";
+import { DENSE_MARKERS, PIN_COLOR, markerKind, markerStyle, tooltipPlacement } from "./mapStyle";
 import { MarkerPopup } from "./MarkerPopup";
 
 const MILES_TO_METERS = 1609.344;
@@ -55,6 +62,26 @@ function ClickToPin({ onPin }: Pick<Props, "onPin">) {
     click: (e) => onPin({ lat: e.latlng.lat, lon: e.latlng.lng }),
   });
   return null;
+}
+
+/** Exposes the Leaflet map to MapView's own event handlers. */
+function MapHandle({ mapRef }: { mapRef: { current: LeafletMap | null } }) {
+  const map = useMap();
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map, mapRef]);
+  return null;
+}
+
+/** Points a marker's hover card away from the nearest map edge before it shows. */
+function placeTooltip(map: LeafletMap | null, e: LeafletMouseEvent) {
+  const layer = e.target as LeafletCircleMarker;
+  const tip = layer.getTooltip?.();
+  if (!map || !tip) return;
+  const { direction, offset } = tooltipPlacement(map.latLngToContainerPoint(layer.getLatLng()), map.getSize());
+  tip.options.direction = direction;
+  tip.options.offset = offset;
+  tip.update();
 }
 
 function KeepPinVisible({ pin }: Pick<Props, "pin">) {
@@ -154,6 +181,7 @@ export function MapView(props: Props) {
   const { pin, radiusMiles, rows, onPin, onSelect, onAsk, focus = null, onFocusDone } = props;
   const { hoverApn = null, onHover, onViewCount } = props;
   const [popup, setPopup] = useState<OpenPopup | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const [inView, setInView] = useState(rows.length);
   const countInView = useCallback(
     (n: number) => {
@@ -176,6 +204,7 @@ export function MapView(props: Props) {
       />
       <ClickToPin onPin={onPin} />
       <KeepPinVisible pin={pin} />
+      <MapHandle mapRef={mapRef} />
       <FocusOn
         focus={focus}
         rows={rows}
@@ -205,7 +234,8 @@ export function MapView(props: Props) {
         const style = markerStyle(row.signals, focused, dense);
         return (
           <CircleMarker
-            key={row.lead.apn}
+            // className is applied only at creation, so a kind change must remount the marker.
+            key={`${row.lead.apn}:${markerKind(row.signals)}`}
             center={[row.lead.lat, row.lead.lon]}
             radius={style.radius}
             className={style.className}
@@ -213,7 +243,10 @@ export function MapView(props: Props) {
             pathOptions={style.pathOptions}
             eventHandlers={{
               click: () => setPopup({ apn: row.lead.apn, autoPan: true }),
-              mouseover: () => onHover?.(row.lead.apn),
+              mouseover: (e: LeafletMouseEvent) => {
+                placeTooltip(mapRef.current, e);
+                onHover?.(row.lead.apn);
+              },
               mouseout: () => onHover?.(null),
             }}
           >

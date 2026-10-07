@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
 import type { ResultRow } from "../state/search";
@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   markers: [] as Record<string, unknown>[],
   popups: [] as Record<string, unknown>[],
   pins: [] as Record<string, unknown>[],
+  mounted: [] as string[],
   map: {
     getBounds: () => ({ contains: () => true }),
     getZoom: () => 11,
@@ -16,6 +17,8 @@ const h = vi.hoisted(() => ({
     flyTo: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
+    latLngToContainerPoint: vi.fn(() => ({ x: 340, y: 8 })),
+    getSize: () => ({ x: 680, y: 420 }),
   },
 }));
 
@@ -25,6 +28,10 @@ vi.mock("react-leaflet", () => ({
   Circle: () => null,
   CircleMarker: (props: Record<string, unknown>) => {
     h.markers.push(props);
+    // Leaflet applies className only when the layer is created, i.e. on mount.
+    useEffect(() => {
+      if (typeof props["className"] === "string") h.mounted.push(props["className"]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
     return null;
   },
   Marker: (props: Record<string, unknown>) => {
@@ -74,6 +81,7 @@ beforeEach(() => {
   h.markers.length = 0;
   h.popups.length = 0;
   h.pins.length = 0;
+  h.mounted.length = 0;
   vi.clearAllMocks();
 });
 
@@ -124,11 +132,23 @@ describe("MapView", () => {
     const { container } = render(<>{tooltip.props["children"] as ReactNode}</>);
     expect(container.textContent).toBe("A1 Main StRoof 22 yrsNo permit");
     expect(markerFor("A1")["className"]).toBe("result-marker result-marker--aged_roof");
-    const handlers = markerFor("A1")["eventHandlers"] as Record<string, () => void>;
-    act(() => handlers["mouseover"]!());
+    const handlers = markerFor("A1")["eventHandlers"] as Record<string, (e?: unknown) => void>;
+    const tip = { options: { direction: "top", offset: [0, -6] }, update: vi.fn() };
+    const target = { getTooltip: () => tip, getLatLng: () => ({ lat: 37.31, lng: -121.91 }) };
+    act(() => handlers["mouseover"]!({ target }));
+    // A marker 8 px below the top edge opens its card downward.
+    expect(tip.options).toEqual({ direction: "bottom", offset: [0, 8] });
+    expect(tip.update).toHaveBeenCalled();
     expect(onHover).toHaveBeenLastCalledWith("A1");
     act(() => handlers["mouseout"]!());
     expect(onHover).toHaveBeenLastCalledWith(null);
+  });
+
+  it("remounts a marker when its kind changes so its class stays right", () => {
+    const { rerender } = render(<MapView {...props} />);
+    const changed = [{ ...rows[0]!, signals: new Set(["open_permit"]) } as ResultRow, rows[1]!];
+    rerender(<MapView {...props} rows={changed} />);
+    expect(h.mounted).toContain("result-marker result-marker--open_permit");
   });
 
   it("enlarges the hovered marker", () => {

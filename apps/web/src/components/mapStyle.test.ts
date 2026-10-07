@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Signal } from "../state/search";
-import { markerKind, markerStyle } from "./mapStyle";
+import { markerKind, markerStyle, tooltipPlacement } from "./mapStyle";
 
 const set = (...s: Signal[]) => new Set<Signal>(s);
 
@@ -33,5 +33,16 @@ describe("markerStyle", () => {
   it("dense views shrink unfocused markers to radius 4", () => {
     expect(markerStyle(set("aged_roof", "open_permit"), false, true).radius).toBe(4);
     expect(markerStyle(set("aged_roof"), true, true).radius).toBe(9);
+  });
+});
+
+describe("tooltipPlacement", () => {
+  const size = { x: 680, y: 420 };
+  it("keeps the hover card inside the map", () => {
+    expect(tooltipPlacement({ x: 340, y: 8 }, size)).toEqual({ direction: "bottom", offset: [0, 8] });
+    expect(tooltipPlacement({ x: 8, y: 200 }, size)).toEqual({ direction: "right", offset: [8, 0] });
+    expect(tooltipPlacement({ x: 672, y: 200 }, size)).toEqual({ direction: "left", offset: [-8, 0] });
+    expect(tooltipPlacement({ x: 340, y: 200 }, size)).toEqual({ direction: "top", offset: [0, -6] });
+    expect(tooltipPlacement({ x: 8, y: 8 }, size).direction).toBe("right");
   });
 });

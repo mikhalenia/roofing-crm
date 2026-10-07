@@ -54,3 +54,24 @@ export function markerStyle(signals: ReadonlySet<Signal>, focused: boolean, dens
     pathOptions: { color: s.stroke, weight: 1.5, fillColor: s.fill, fillOpacity: 0.7 },
   };
 }
+
+export type TooltipDirection = "top" | "bottom" | "left" | "right";
+
+/** Distance from the top edge, in px, below which a hover card opens downward. */
+const TOP_ROOM = 80;
+/** Distance from a side edge, in px, within which a hover card opens toward the map center. */
+const SIDE_ROOM = 130;
+
+/**
+ * Where a marker's hover card goes so it stays inside the map: toward the center near a side
+ * edge, below near the top edge, above otherwise.
+ */
+export function tooltipPlacement(
+  point: { x: number; y: number },
+  size: { x: number; y: number },
+): { direction: TooltipDirection; offset: [number, number] } {
+  if (point.x < SIDE_ROOM) return { direction: "right", offset: [8, 0] };
+  if (point.x > size.x - SIDE_ROOM) return { direction: "left", offset: [-8, 0] };
+  if (point.y < TOP_ROOM) return { direction: "bottom", offset: [0, 8] };
+  return { direction: "top", offset: [0, -6] };
+}
