@@ -1,0 +1,19 @@
+{
+  "name": "roofing-crm-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "roofing-crm",
+      "database_id": "TBD-created-at-deploy",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": { "binding": "AI" },
+  "vars": {
+    "PIPELINE_API": "https://scc-pipeline-api.mikhalenia-a.workers.dev",
+    "ALLOWED_ORIGIN": "*"
+  }
+}

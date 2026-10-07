@@ -2,7 +2,7 @@
   "name": "api",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/api/src",
-  "projectType": "library",
+  "projectType": "application",
   "tags": [],
   "// targets": "to see all targets run: nx show project api --web",
   "targets": {
@@ -14,6 +14,20 @@
           "tsc --noEmit -p apps/api/tsconfig.spec.json"
         ],
         "parallel": false
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "wrangler deploy",
+        "cwd": "apps/api"
+      }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "wrangler d1 migrations apply roofing-crm --remote",
+        "cwd": "apps/api"
       }
     }
   }

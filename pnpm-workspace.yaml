@@ -5,3 +5,4 @@ allowBuilds:
   nx: true
   "@swc/core": false
   esbuild: false
+  workerd: true

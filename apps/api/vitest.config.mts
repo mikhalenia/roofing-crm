@@ -1,21 +1,21 @@
-import { defineConfig } from "vitest/config";
+import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
-import { nxCopyAssetsPlugin } from "@nx/vite/plugins/nx-copy-assets.plugin";
+import { defineConfig } from "vitest/config";
 
-export default defineConfig(() => ({
+export default defineConfig({
   root: import.meta.dirname,
   cacheDir: "../../node_modules/.vite/apps/api",
-  plugins: [nxViteTsPaths(), nxCopyAssetsPlugin(["*.md"])],
+  plugins: [
+    nxViteTsPaths(),
+    cloudflareTest({
+      wrangler: { configPath: "./wrangler.test.jsonc" },
+    }),
+  ],
   test: {
     name: "api",
     watch: false,
     globals: true,
-    environment: "node",
-    include: ["{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    include: ["src/**/*.test.ts"],
     reporters: ["default"],
-    coverage: {
-      reportsDirectory: "../../coverage/apps/api",
-      provider: "v8" as const,
-    },
   },
-}));
+});

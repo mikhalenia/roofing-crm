@@ -1,0 +1,9 @@
+{
+  // Test-only config: no AI binding (forces a remote connection) and a compatibility_date
+  // the bundled workerd supports.
+  "name": "roofing-crm-api-test",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{ "binding": "DB", "database_name": "roofing-crm", "database_id": "test" }],
+  "vars": { "PIPELINE_API": "https://pipeline.test", "ALLOWED_ORIGIN": "*" }
+}
