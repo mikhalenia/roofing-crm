@@ -52,6 +52,7 @@ describe("LeadsPage", () => {
     expect(await screen.findByText("1 Main St")).toBeInTheDocument();
     expect(screen.getByText("2 Oak Ave")).toBeInTheDocument();
     expect(screen.getAllByText("22 yrs")).toHaveLength(2);
+    expect(screen.getByRole("columnheader", { name: "Open for" })).toBeInTheDocument();
     expect(api.listLeads).toHaveBeenCalledWith({});
   });
 

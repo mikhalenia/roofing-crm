@@ -108,7 +108,7 @@ export function LeadsPage() {
               <TableCell>Notes</TableCell>
               <TableCell>Roof age</TableCell>
               <TableCell>Permit state</TableCell>
-              <TableCell>Days open</TableCell>
+              <TableCell>Open for</TableCell>
               <TableCell>Created</TableCell>
               <TableCell />
             </TableRow>
