@@ -49,6 +49,13 @@ export function resolvedFiltersFromCalls(
     if (a[key] !== undefined) merged[key] = a[key];
   }
   if (a["state"] !== undefined) merged["permitState"] = a["state"];
+  // Aged-roof or plain radius results must not be shown through the user's Open/Stalled filter:
+  // use the state of a permit search in the same answer, or "any".
+  if (merged["permitState"] === undefined) {
+    const permitCall = toolCalls.find((c) => c.name === "find_open_roofing_permits");
+    const state = (permitCall?.args as Record<string, unknown> | undefined)?.["state"];
+    merged["permitState"] = typeof state === "string" ? state : "any";
+  }
   const parsed = PartialSearchParams.safeParse(merged);
   return parsed.success && parsed.data.lat !== undefined && parsed.data.lon !== undefined
     ? parsed.data

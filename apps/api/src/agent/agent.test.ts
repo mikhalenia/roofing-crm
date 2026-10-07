@@ -412,6 +412,7 @@ describe("runAgent", () => {
       lon: -121.8863,
       radiusMiles: 5,
       minRoofAgeYears: 20,
+      permitState: "any",
     });
     expect(res.answer).toContain("264-12-034");
     expect(gen.seen[0]!.system).toContain("call geocode_place");
@@ -836,6 +837,7 @@ describe("runAgent with the real ai generateText loop", () => {
       lon: -121.8863,
       radiusMiles: 5,
       minRoofAgeYears: 20,
+      permitState: "any",
     });
     expect(model.doGenerateCalls).toHaveLength(2);
     expect(model.doGenerateCalls[1]!.toolChoice).toEqual({ type: "auto" });

@@ -78,4 +78,23 @@ describe("isDegenerateAnswer", () => {
   ])("%j -> %s", (text, expected) => {
     expect(isDegenerateAnswer(text)).toBe(expected);
   });
+
+  it("sets permitState any for aged-roof or radius results without a permit search", () => {
+    expect(resolvedFiltersFromCalls([{ name: "find_aged_roofs", args: { lat: 37.3, lon: -121.9 } }])).toMatchObject({
+      permitState: "any",
+      minRoofAgeYears: 15,
+    });
+    expect(
+      resolvedFiltersFromCalls([{ name: "search_properties_in_radius", args: { lat: 37.3, lon: -121.9, radiusMiles: 2 } }]),
+    ).toMatchObject({ permitState: "any", radiusMiles: 2 });
+  });
+
+  it("keeps the permit search's state when aged roofs were searched last", () => {
+    expect(
+      resolvedFiltersFromCalls([
+        { name: "find_open_roofing_permits", args: { lat: 37.3, lon: -121.9, state: "expired_unfinaled" } },
+        { name: "find_aged_roofs", args: { lat: 37.3, lon: -121.9 } },
+      ]),
+    ).toMatchObject({ permitState: "expired_unfinaled" });
+  });
 });
