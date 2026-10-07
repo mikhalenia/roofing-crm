@@ -12,6 +12,7 @@
 
 /* Marker hover card: compact, multi-line, never wider than the map. */
 .leaflet-tooltip.result-tooltip {
+  width: max-content;
   max-width: 240px;
   white-space: normal;
   padding: 6px 8px;
