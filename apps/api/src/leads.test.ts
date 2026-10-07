@@ -191,6 +191,18 @@ describe("leads", () => {
     expect(long.map((l) => l.apn)).toEqual(["OPEN"]);
   });
 
+  it("the stalled filter excludes expired permits whose work was approved", async () => {
+    await create(lead("STALLED", { permitState: "expired_unfinaled", isStalled: true, approvalsComplete: false }));
+    await create(lead("APPROVED", { permitState: "expired_unfinaled", isStalled: false, approvalsComplete: true }));
+    // Saved before the pipeline sent isStalled: derived from approvalsComplete.
+    await create(lead("OLD-APPROVED", { permitState: "expired_unfinaled", approvalsComplete: true }));
+    await create(lead("OLD-STALLED", { permitState: "expired_unfinaled" }));
+    const stalled = (await (await call("/leads?permitState=expired_unfinaled")).json()) as LeadRecord[];
+    expect(stalled.map((l) => l.apn).sort()).toEqual(["OLD-STALLED", "STALLED"]);
+    const any = (await (await call("/leads?permitState=any")).json()) as LeadRecord[];
+    expect(any).toHaveLength(4);
+  });
+
   it("radius filter includes 1 mile and excludes 20 miles", async () => {
     const perMile = 1 / 69;
     await create(lead("NEAR", { lat: CENTER.lat + perMile, lon: CENTER.lon }));

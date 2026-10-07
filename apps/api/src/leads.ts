@@ -94,6 +94,13 @@ leads.get("/", async (c) => {
   if (f.permitState && f.permitState !== "any") {
     where.push("permit_state = ?");
     args.push(f.permitState);
+    if (f.permitState === "expired_unfinaled") {
+      // "Stalled" means the pipeline's isStalled; a lead saved before that field existed falls
+      // back to approvalsComplete, so an expired permit with approved work is not stalled.
+      where.push(
+        "COALESCE(json_extract(snapshot, '$.isStalled'), json_extract(snapshot, '$.approvalsComplete') IS NOT 1) = 1",
+      );
+    }
   }
   if (f.minOpenYears !== undefined) {
     where.push("days_open >= ?");
