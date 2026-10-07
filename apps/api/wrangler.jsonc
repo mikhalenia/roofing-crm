@@ -14,6 +14,6 @@
   "ai": { "binding": "AI" },
   "vars": {
     "PIPELINE_API": "https://scc-pipeline-api.mikhalenia-a.workers.dev",
-    "ALLOWED_ORIGIN": "*"
+    "ALLOWED_ORIGIN": "https://roofing-crm.pages.dev"
   }
 }

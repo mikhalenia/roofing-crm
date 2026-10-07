@@ -7,9 +7,11 @@ import { writeLimit } from "./rate-limit";
 
 const app = new Hono<{ Bindings: Cloudflare.Env }>();
 
+const DEV_ORIGINS = ["http://localhost:4200", "http://localhost:4300"];
+
 app.use("*", (c, next) =>
   cors({
-    origin: c.env.ALLOWED_ORIGIN,
+    origin: [c.env.ALLOWED_ORIGIN, ...DEV_ORIGINS],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   })(c, next),
 );
