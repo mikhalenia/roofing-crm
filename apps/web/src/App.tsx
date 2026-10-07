@@ -13,6 +13,7 @@ import { FutureNav } from "./components/FutureNav";
 import { AgentPage } from "./pages/AgentPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { ProspectPage } from "./pages/ProspectPage";
+import { AgentProvider } from "./state/AgentContext";
 import { SearchProvider } from "./state/SearchContext";
 
 const NAV_WIDTH = 220;
@@ -60,7 +61,9 @@ function Shell() {
 export function App() {
   return (
     <SearchProvider>
-      <Shell />
+      <AgentProvider>
+        <Shell />
+      </AgentProvider>
     </SearchProvider>
   );
 }

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchProvider, useSearch } from "../state/SearchContext";
+import { AgentProvider, useAgent } from "../state/AgentContext";
 import { AgentPanel } from "./AgentPanel";
 
 const api = vi.hoisted(() => ({ askAgent: vi.fn() }));
@@ -24,14 +25,23 @@ function Probe() {
   return <div data-testid="probe">{JSON.stringify({ pin: state.pin, r: state.radiusMiles, f: state.filters })}</div>;
 }
 
+function AskAboutButton() {
+  const { askAbout } = useAgent();
+  const lead = { apn: "A1", situsAddress: "1 Main St" } as Parameters<typeof askAbout>[0];
+  return <button type="button" onClick={() => askAbout(lead)}>ask about</button>;
+}
+
 function setup() {
   return render(
     <MemoryRouter initialEntries={["/agent"]}>
       <SearchProvider>
+        <AgentProvider>
         <Routes>
           <Route path="/agent" element={<AgentPanel />} />
           <Route path="/" element={<div>prospect page</div>} />
         </Routes>
+        <AskAboutButton />
+        </AgentProvider>
         <Probe />
       </SearchProvider>
     </MemoryRouter>,
@@ -108,5 +118,30 @@ describe("AgentPanel", () => {
     setup();
     await ask();
     expect(await screen.findByText("Too many requests, try again in a minute")).toBeInTheDocument();
+  });
+
+  it("Ask agent prefills the question and sends the selected property, highlighting its source", async () => {
+    api.askAgent.mockResolvedValue({ ...response, sources: [{ apn: "A1", address: "1 Main St" }, { apn: "A2" }] });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "ask about" }));
+    expect(screen.getByLabelText("Question")).toHaveValue(
+      "Tell me about 1 Main St (APN A1): roof age, permits, contractor, and whether it is a good roofing lead",
+    );
+    expect(screen.getByText("About 1 Main St")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByText(/Found 2 roofs\./);
+    expect(api.askAgent).toHaveBeenCalledWith({
+      question: expect.stringContaining("APN A1"),
+      context: { lat: 37.3382, lon: -121.8863, radiusMiles: 5, apn: "A1", address: "1 Main St" },
+    });
+    expect(screen.getByRole("button", { name: "1 Main St" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "A2" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("an example question clears the selected property", () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "ask about" }));
+    fireEvent.click(screen.getByText("Save the three oldest roofs near Cupertino as leads"));
+    expect(screen.queryByText("About 1 Main St")).toBeNull();
   });
 });

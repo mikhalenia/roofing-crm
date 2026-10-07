@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import { AgentProvider } from "../state/AgentContext";
 import { SearchProvider, useSearch } from "../state/SearchContext";
 import { ProspectPage } from "./ProspectPage";
 
@@ -18,6 +20,8 @@ vi.mock("react-leaflet", () => ({
     return null;
   },
   Tooltip: () => null,
+  Marker: () => null,
+  Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   useMap: () => ({ getBounds: () => ({ contains: () => true }), getZoom: () => 11, setView: () => undefined }),
   useMapEvents: (h: typeof hoisted.handlers) => {
     hoisted.handlers.click = h.click;
@@ -48,6 +52,16 @@ afterEach(() => vi.unstubAllGlobals());
 
 const searchCalls = () => fetchMock.mock.calls.filter(([u]) => u.includes("/api/leads/")).length;
 
+function Wrap({ children }: { children: ReactNode }) {
+  return (
+    <MemoryRouter>
+      <SearchProvider>
+        <AgentProvider>{children}</AgentProvider>
+      </SearchProvider>
+    </MemoryRouter>
+  );
+}
+
 function ApplyButton() {
   const { dispatch } = useSearch();
   return (
@@ -64,7 +78,7 @@ function ApplyButton() {
 
 describe("ProspectPage", () => {
   it("runs the search once after applyParams (Apply to map)", async () => {
-    render(<SearchProvider><ApplyButton /><ProspectPage /></SearchProvider>);
+    render(<Wrap><ApplyButton /><ProspectPage /></Wrap>);
     expect(searchCalls()).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: "apply" }));
     await screen.findByText("1 Main St");
@@ -78,7 +92,7 @@ describe("ProspectPage", () => {
   });
 
   it("result markers do not bubble clicks to the map", async () => {
-    render(<SearchProvider><ProspectPage /></SearchProvider>);
+    render(<Wrap><ProspectPage /></Wrap>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     const results = hoisted.markerProps.filter((p) => p["bubblingMouseEvents"] === false);
@@ -87,7 +101,7 @@ describe("ProspectPage", () => {
   });
 
   it("a failed search keeps old rows and shows the banner", async () => {
-    render(<SearchProvider><ProspectPage /></SearchProvider>);
+    render(<Wrap><ProspectPage /></Wrap>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     failSearch = true;
@@ -97,7 +111,7 @@ describe("ProspectPage", () => {
   });
 
   it("an out-of-bounds pin skips the search, shows the error and keeps rows", async () => {
-    render(<SearchProvider><ProspectPage /></SearchProvider>);
+    render(<Wrap><ProspectPage /></Wrap>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     const before = searchCalls();

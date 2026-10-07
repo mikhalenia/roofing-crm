@@ -14,10 +14,9 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
-import { CrmError, createLead, getLead } from "../api/crm";
-import { errorText } from "../api/errors";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
 import { ProvenanceChip } from "./ProvenanceChip";
+import { useLeadSave } from "./useLeadSave";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -79,10 +78,7 @@ export function PropertyDrawer({
   pin?: { lat: number; lon: number } | undefined;
   onClose: () => void;
 }) {
-  const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const { isKnown, saving, saved, clearSaved, error: saveError, save: saveLead } = useLeadSave(apn);
 
   const [result, setResult] = useState<{
     apn: string;
@@ -108,40 +104,9 @@ export function PropertyDrawer({
     };
   }, [apn]);
 
-  const markKnown = (a: string) => setKnown((k) => new Set([...k, a]));
-
-  // Read-only check so an existing lead shows "Already a lead" before any click.
-  useEffect(() => {
-    if (!apn) return;
-    let cancelled = false;
-    getLead(apn).then(
-      (lead) => {
-        if (!cancelled && lead) setKnown((k) => new Set([...k, lead.apn]));
-      },
-      () => undefined, // a failed lookup leaves the button enabled; a save still gets 409
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [apn]);
   const save = (detail: PropertyDetail) => {
     const target = detail.property.apn;
-    const lead = snapshot?.apn === target ? snapshot : leadFromDetail(detail, pin);
-    if (!lead) return;
-    setSaving(true);
-    setSaveError(null);
-    createLead({ apn: target, snapshot: lead }).then(
-      () => {
-        markKnown(target);
-        setToast(true);
-        setSaving(false);
-      },
-      (e: unknown) => {
-        setSaving(false);
-        if (e instanceof CrmError && e.status === 409) markKnown(target);
-        else setSaveError(errorText(e, "Failed to save lead"));
-      },
-    );
+    saveLead(snapshot?.apn === target ? snapshot : leadFromDetail(detail, pin));
   };
 
   // Ignore a result that belongs to a previously selected property.
@@ -166,11 +131,11 @@ export function PropertyDrawer({
               <span>
                 <Button
                   variant="contained"
-                  disabled={saving || known.has(p.apn) || noCoords}
+                  disabled={saving || isKnown(p.apn) || noCoords}
                   onClick={() => save(detail)}
                   sx={{ my: 1 }}
                 >
-                  {known.has(p.apn) ? "Already a lead" : "Save as lead"}
+                  {isKnown(p.apn) ? "Already a lead" : "Save as lead"}
                 </Button>
               </span>
             </Tooltip>
@@ -235,7 +200,7 @@ export function PropertyDrawer({
           </>
         )}
       </Box>
-      <Snackbar open={toast} autoHideDuration={4000} onClose={() => setToast(false)} message="Saved as lead" />
+      <Snackbar open={saved} autoHideDuration={4000} onClose={clearSaved} message="Saved as lead" />
     </Drawer>
   );
 }

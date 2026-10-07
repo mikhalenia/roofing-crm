@@ -36,6 +36,19 @@ export interface SearchState {
   capped: boolean;
   /** Set by applyParams; ProspectPage runs one search and the search actions clear it. */
   pendingSearch: boolean;
+  /** searchKey() of the last search started; auto-search runs when the current key differs. */
+  lastSearchKey: string | null;
+  /** A property to show on the map (agent source chip, Leads "On map"); MapView consumes it. */
+  focus: Focus | null;
+  /** The result hovered in the table or on the map; both highlight it. */
+  hoverApn: string | null;
+}
+
+export interface Focus {
+  apn: string;
+  /** Known coordinates, used to pan when the APN is not in the current results. */
+  lat?: number | undefined;
+  lon?: number | undefined;
 }
 
 /** Records fetched per endpoint; a response this long may be truncated. */
@@ -58,6 +71,9 @@ export const initialState: SearchState = {
   healthError: null,
   capped: false,
   pendingSearch: false,
+  lastSearchKey: null,
+  focus: null,
+  hoverApn: null,
 };
 
 export type SearchAction =
@@ -65,7 +81,10 @@ export type SearchAction =
   | { type: "setRadius"; radiusMiles: number }
   | { type: "setFilters"; filters: Partial<Filters> }
   | { type: "applyParams"; params: PartialSearchParams }
-  | { type: "searchStarted" }
+  | { type: "searchStarted"; key?: string }
+  | { type: "focusProperty"; focus: Focus }
+  | { type: "focusDone" }
+  | { type: "hover"; apn: string | null }
   | { type: "searchSucceeded"; aged: PipelineSearchResponse; open: PipelineSearchResponse }
   | { type: "searchFailed"; error: string }
   | { type: "healthLoaded"; snapshot: PipelineSnapshot }
@@ -122,7 +141,19 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
       };
     }
     case "searchStarted":
-      return { ...state, loading: true, error: null, pendingSearch: false };
+      return {
+        ...state,
+        loading: true,
+        error: null,
+        pendingSearch: false,
+        lastSearchKey: action.key ?? state.lastSearchKey,
+      };
+    case "focusProperty":
+      return { ...state, focus: action.focus };
+    case "focusDone":
+      return { ...state, focus: null };
+    case "hover":
+      return state.hoverApn === action.apn ? state : { ...state, hoverApn: action.apn };
     case "searchSucceeded":
       return {
         ...state,
@@ -150,6 +181,11 @@ export function toSearchParams(state: SearchState): SearchParamsOutput {
     ...state.filters,
     limit: SEARCH_LIMIT,
   };
+}
+
+/** Identifies a search by its parameters; auto-search compares it with lastSearchKey. */
+export function searchKey(state: SearchState): string {
+  return JSON.stringify(toSearchParams(state));
 }
 
 export function markerColor(row: ResultRow, minRoofAgeYears: number): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
-import { initialState, markerColor, searchReducer, toSearchParams, type Signal } from "./search";
+import { initialState, markerColor, searchKey, searchReducer, toSearchParams, type Signal } from "./search";
 
 const provenance = {
   propertySourceUrl: "u",
@@ -190,5 +190,34 @@ describe("capped", () => {
       open: { snapshot, items: [] },
     });
     expect(few.capped).toBe(false);
+  });
+});
+
+describe("focus", () => {
+  it("focusProperty sets the target and focusDone clears it, keeping the pin", () => {
+    const s = searchReducer(initialState, { type: "focusProperty", focus: { apn: "A1", lat: 37.4, lon: -122 } });
+    expect(s.focus).toEqual({ apn: "A1", lat: 37.4, lon: -122 });
+    expect(s.pin).toEqual(initialState.pin);
+    expect(searchReducer(s, { type: "focusDone" }).focus).toBeNull();
+  });
+});
+
+describe("hover", () => {
+  it("sets and clears hoverApn, returning the same state when unchanged", () => {
+    const s = searchReducer(initialState, { type: "hover", apn: "A1" });
+    expect(s.hoverApn).toBe("A1");
+    expect(searchReducer(s, { type: "hover", apn: "A1" })).toBe(s);
+    expect(searchReducer(s, { type: "hover", apn: null }).hoverApn).toBeNull();
+  });
+});
+
+describe("searchKey", () => {
+  it("changes with pin, radius and filters; searchStarted records it", () => {
+    const k0 = searchKey(initialState);
+    expect(searchKey(searchReducer(initialState, { type: "setPin", pin: { lat: 37.4, lon: -122 } }))).not.toBe(k0);
+    expect(searchKey(searchReducer(initialState, { type: "setRadius", radiusMiles: 2 }))).not.toBe(k0);
+    expect(searchKey(searchReducer(initialState, { type: "setFilters", filters: { roofingOnly: false } }))).not.toBe(k0);
+    expect(searchReducer(initialState, { type: "searchStarted", key: k0 }).lastSearchKey).toBe(k0);
+    expect(initialState.lastSearchKey).toBeNull();
   });
 });

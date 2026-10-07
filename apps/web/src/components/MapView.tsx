@@ -1,6 +1,8 @@
-import { useEffect } from "react";
-import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { useEffect, useMemo, useState } from "react";
+import type { PipelineLead } from "@crm/contracts";
+import { Circle, CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { markerColor, type ResultRow } from "../state/search";
+import { MarkerPopup } from "./MarkerPopup";
 
 const MILES_TO_METERS = 1609.344;
 
@@ -10,7 +12,10 @@ interface Props {
   minRoofAgeYears: number;
   rows: ResultRow[];
   onPin: (pin: { lat: number; lon: number }) => void;
+  /** Opens the property drawer. */
   onSelect: (apn: string) => void;
+  /** Opens the agent panel with a question about this property. */
+  onAsk: (lead: PipelineLead) => void;
 }
 
 function ClickToPin({ onPin }: Pick<Props, "onPin">) {
@@ -30,7 +35,25 @@ function KeepPinVisible({ pin }: Pick<Props, "pin">) {
   return null;
 }
 
-export function MapView({ pin, radiusMiles, minRoofAgeYears, rows, onPin, onSelect }: Props) {
+function ResultPopup({
+  lead,
+  onClosed,
+  onSelect,
+  onAsk,
+}: { lead: PipelineLead; onClosed: () => void } & Pick<Props, "onSelect" | "onAsk">) {
+  // Popup re-opens whenever `position` changes identity, so keep it stable.
+  const position = useMemo<[number, number]>(() => [lead.lat, lead.lon], [lead.lat, lead.lon]);
+  return (
+    // Closing (x, Escape, a map click) removes the layer; the parent ignores a replaced popup.
+    <Popup position={position} eventHandlers={{ remove: onClosed }}>
+      <MarkerPopup lead={lead} onDetails={onSelect} onAsk={onAsk} />
+    </Popup>
+  );
+}
+
+export function MapView({ pin, radiusMiles, minRoofAgeYears, rows, onPin, onSelect, onAsk }: Props) {
+  const [popupApn, setPopupApn] = useState<string | null>(null);
+  const popupRow = popupApn ? rows.find((r) => r.lead.apn === popupApn) : undefined;
   return (
     <MapContainer
       center={[pin.lat, pin.lon]}
@@ -54,12 +77,21 @@ export function MapView({ pin, radiusMiles, minRoofAgeYears, rows, onPin, onSele
             radius={7}
             bubblingMouseEvents={false}
             pathOptions={{ color, fillColor: color, fillOpacity: 0.8 }}
-            eventHandlers={{ click: () => onSelect(row.lead.apn) }}
+            eventHandlers={{ click: () => setPopupApn(row.lead.apn) }}
           >
             <Tooltip>{row.lead.situsAddress ?? row.lead.apn}</Tooltip>
           </CircleMarker>
         );
       })}
+      {popupRow && (
+        <ResultPopup
+          key={popupRow.lead.apn}
+          lead={popupRow.lead}
+          onClosed={() => setPopupApn((cur) => (cur === popupRow.lead.apn ? null : cur))}
+          onSelect={onSelect}
+          onAsk={onAsk}
+        />
+      )}
     </MapContainer>
   );
 }

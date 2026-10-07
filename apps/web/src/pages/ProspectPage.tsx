@@ -4,6 +4,8 @@ import { SearchParams } from "@crm/contracts";
 import { PipelineError, fetchAgedRoofs, fetchHealth, fetchOpenPermits } from "../api/pipeline";
 import { toSearchParams } from "../state/search";
 import { useSearch } from "../state/SearchContext";
+import { useAgent } from "../state/AgentContext";
+import { useNavigate } from "react-router-dom";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
@@ -17,6 +19,8 @@ export function ProspectPage() {
   const { state, dispatch } = useSearch();
   const [selected, setSelected] = useState<string | null>(null);
   const requestId = useRef(0);
+  const { askAbout } = useAgent();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchHealth().then(
@@ -72,6 +76,10 @@ export function ProspectPage() {
             rows={state.results}
             onPin={(pin) => dispatch({ type: "setPin", pin })}
             onSelect={setSelected}
+            onAsk={(lead) => {
+              askAbout(lead);
+              navigate("/agent");
+            }}
           />
         </Box>
         <Box sx={{ overflowX: "auto" }}>
