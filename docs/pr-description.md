@@ -55,7 +55,8 @@ banner shows the error and the last known snapshot, with no fake data.
 - Agent panel next to the map: "Ask agent" prefills a question about the selected property and sends its APN as context; source chips fly the map to the property. The full-page Agent route still works.
 - Property drawer with a header (address, APN, Save as lead, Ask agent), readable permit and roof-age labels, and provenance with raw identifiers behind "Technical details".
 - Data status chip in the top bar ("Data: Santa Clara County · updated …") with an "About this data" explanation.
-- Leads CRUD with status, notes, filters and "On map" (code and tests complete; deployed run pending, see Testing).
+- Friendly labels everywhere (Open / Stalled / Completed, "23 years, 2 months", "Oct 7, 2026"); a unit test fails if a raw pipeline token reaches the Prospect, Leads or Agent screens.
+- Leads CRUD with status, a notes editor, filters labeled with the pin they use, and "On map" (verified live: save, status change, delete).
 - RAG agent (6 tools, up to 6 steps) with tool-call display, citations and "Apply to map".
 - Disabled future sections in the sidebar.
 
@@ -91,15 +92,14 @@ is used for every LLM call as required, tool schemas are Zod, and there are no p
 - Unit (Vitest): contracts, search state, API clients, components, agent post-filters.
 - Workers pool (`@cloudflare/vitest-pool-workers`): leads CRUD and 409, rate limit, `/agent` with a stubbed model and pipeline, and the real `generateText` loop.
 - Playwright `apps/web-e2e/src/demo-transcript.spec.ts` against the deployed runtime.
-  - The spec now has 12 steps (pin with auto-search, marker popup, ask agent from the popup, save as lead from the popup, leads page, agent page). It passes against a local mock backend.
-  - Verified earlier on the deployed runtime with the old 10-step numbering (screenshots in `apps/web-e2e/screenshots/`): open, pin, radius/age, search, sort, drawer, agent, disabled nav.
-  - Pending: the deployed 12-step run and renumbered screenshots. On 2026-10-07 the D1 free-tier daily limits were hit (CRM writes, then pipeline reads); both reset 2026-10-08 00:00 UTC.
+  - 12 steps, all passing on https://roofing-crm.pages.dev with writes enabled (screenshots in `apps/web-e2e/screenshots/`): open, pin with auto-search, radius/age, results, sort, drawer, marker popup, ask agent from the popup, save as lead from the popup (201), leads page (PATCH status, DELETE via the UI), agent page, disabled nav.
+  - The run deletes the lead it created; production keeps no demo lead.
   - Not covered by e2e: lead filters and GPS.
 
 ## Acceptance criteria
 
 [docs/acceptance-criteria.md](docs/acceptance-criteria.md) traces every README criterion and demo step:
-20 items, 14 met, 6 partial, 0 gap (partial: pending D1 re-run, BBB not available, San José-only permits).
+20 items, 16 met, 4 partial, 0 gap (partial: BBB not available, San José-only permits, county rectangle, lead filters not in the e2e).
 
 ## Kit usage
 
