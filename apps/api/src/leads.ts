@@ -121,10 +121,23 @@ leads.get("/", async (c) => {
   return c.json(rows.map(toRecord), 200);
 });
 
+/** Largest accepted snapshot, serialized. Pipeline records are a few KB. */
+export const MAX_SNAPSHOT_BYTES = 64 * 1024;
+
+leads.get("/:apn", async (c) => {
+  const row = await c.env.DB.prepare("SELECT * FROM leads WHERE apn = ?")
+    .bind(c.req.param("apn"))
+    .first<LeadRow>();
+  return row ? c.json(toRecord(row), 200) : c.json({ error: "not found" }, 404);
+});
+
 leads.post("/", async (c) => {
   const parsed = parse(CreateLead, await readJson(c.req.raw));
   if (parsed.error) return c.json(parsed.error, 400);
   const { apn, snapshot } = parsed.data;
+  if (new TextEncoder().encode(JSON.stringify(snapshot)).length > MAX_SNAPSHOT_BYTES) {
+    return c.json({ error: "snapshot too large" }, 413);
+  }
   const now = new Date().toISOString();
   if ((await insertLead(c.env.DB, parsed.data, now)) === "exists") {
     return c.json({ error: "lead exists" }, 409);

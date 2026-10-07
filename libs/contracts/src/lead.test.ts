@@ -72,6 +72,10 @@ describe('lead schemas', () => {
     expect(CreateLead.safeParse({ apn: 'a', snapshot: minimal }).success).toBe(true);
     expect(UpdateLead.safeParse({}).success).toBe(true);
     expect(UpdateLead.safeParse({ status: 'lost', notes: 'x' }).success).toBe(true);
+    expect(UpdateLead.safeParse({ notes: 'n'.repeat(2000) }).success).toBe(true);
+    expect(UpdateLead.safeParse({ notes: 'n'.repeat(2001) }).success).toBe(false);
+    expect(CreateLead.safeParse({ apn: 'a'.repeat(16), snapshot: minimal }).success).toBe(true);
+    expect(CreateLead.safeParse({ apn: 'a'.repeat(17), snapshot: minimal }).success).toBe(false);
     expect(
       LeadRecord.safeParse({
         apn: 'a',

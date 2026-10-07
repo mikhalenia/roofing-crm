@@ -1,9 +1,10 @@
-import { AgentRequest } from "@crm/contracts";
+import { AgentRequest, PipelineSnapshot } from "@crm/contracts";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getAgentDeps, runAgent } from "./agent";
 import { leads } from "./leads";
 import { writeLimit } from "./rate-limit";
+import { z } from "zod";
 
 const app = new Hono<{ Bindings: Cloudflare.Env }>();
 
@@ -16,7 +17,33 @@ app.use("*", (c, next) =>
   })(c, next),
 );
 
-app.get("/health", (c) => c.json({ ok: true, pipelineApi: c.env.PIPELINE_API, manifestCid: null }));
+const HEALTH_TIMEOUT_MS = 5000;
+const PipelineHealth = z.looseObject({ snapshot: PipelineSnapshot });
+
+/** Our own health plus the pipeline snapshot ids; a pipeline failure is reported, not thrown. */
+app.get("/health", async (c) => {
+  const pipelineApi = c.env.PIPELINE_API;
+  let snapshot: { manifestCid: string | null; runId: string | null } | null = null;
+  try {
+    const res = await fetch(new URL("/api/health", pipelineApi).toString(), {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
+    });
+    if (res.ok) {
+      const parsed = PipelineHealth.safeParse(await res.json());
+      if (parsed.success) snapshot = parsed.data.snapshot;
+    }
+  } catch (err) {
+    console.warn("pipeline health failed:", err instanceof Error ? err.message : err);
+  }
+  return c.json({
+    ok: true,
+    pipelineApi,
+    pipelineOk: snapshot !== null,
+    manifestCid: snapshot?.manifestCid ?? null,
+    runId: snapshot?.runId ?? null,
+  });
+});
 
 app.use("/leads/*", writeLimit);
 app.route("/leads", leads);

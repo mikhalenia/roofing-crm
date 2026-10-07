@@ -15,12 +15,12 @@ export const LeadRecord = z.object({
 });
 export type LeadRecord = z.infer<typeof LeadRecord>;
 
-export const CreateLead = z.object({ apn: z.string(), snapshot: PipelineLead });
+export const CreateLead = z.object({ apn: z.string().min(1).max(16), snapshot: PipelineLead });
 export type CreateLead = z.infer<typeof CreateLead>;
 
 export const UpdateLead = z.object({
   status: LeadStatus.optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(2000).optional(),
 });
 export type UpdateLead = z.infer<typeof UpdateLead>;
 

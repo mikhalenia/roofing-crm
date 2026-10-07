@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import app from "./index";
 
 const env = {
@@ -12,6 +12,12 @@ async function allowOrigin(origin: string): Promise<string | null> {
 }
 
 describe("cors", () => {
+  // /health proxies the pipeline; keep these tests offline.
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 503 }));
+  });
+  afterEach(() => vi.restoreAllMocks());
+
   it("allows the deployed web origin and local dev origins", async () => {
     for (const o of [
       "https://roofing-crm.pages.dev",

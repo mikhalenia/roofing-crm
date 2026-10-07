@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import type { LeadRecord, PipelineLead } from "@crm/contracts";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import migration from "../migrations/0001_leads.sql?raw";
 import app from "./index";
 
@@ -57,11 +57,49 @@ beforeEach(async () => {
 });
 
 describe("health", () => {
-  it("reports ok", async () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("proxies the pipeline health for manifestCid and runId", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          snapshot: { runId: "run-9", manifestCid: "bafy-live", syncedAt: "2026-10-07T00:00:00Z" },
+        }),
+        { status: 200 },
+      ),
+    );
     const res = await call("/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, pipelineApi: env.PIPELINE_API, manifestCid: null });
+    expect(await res.json()).toEqual({
+      ok: true,
+      pipelineApi: env.PIPELINE_API,
+      pipelineOk: true,
+      manifestCid: "bafy-live",
+      runId: "run-9",
+    });
+    expect(String(spy.mock.calls[0]![0])).toBe(new URL("/api/health", env.PIPELINE_API).toString());
   });
+
+  it("reports pipelineOk false and null ids when the pipeline is down", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("down", { status: 503 }));
+    const res = await call("/health");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      pipelineApi: env.PIPELINE_API,
+      pipelineOk: false,
+      manifestCid: null,
+      runId: null,
+    });
+  });
+
+  it("reports pipelineOk false when the pipeline fetch throws", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("timeout"));
+    const body = (await (await call("/health")).json()) as Record<string, unknown>;
+    expect(body).toMatchObject({ ok: true, pipelineOk: false, manifestCid: null, runId: null });
+  });
+
   it("404s unknown routes as json", async () => {
     const res = await call("/nope");
     expect(res.status).toBe(404);
@@ -87,6 +125,36 @@ describe("leads", () => {
     const res = await create(lead("A-1"));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "lead exists" });
+  });
+
+  it("gets one lead by apn -> 200 LeadRecord, 404 for unknown", async () => {
+    await create(lead("A-1"));
+    const res = await call("/leads/A-1");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as LeadRecord;
+    expect(body.apn).toBe("A-1");
+    expect(body.status).toBe("new");
+    expect(body.snapshot.apn).toBe("A-1");
+    const missing = await call("/leads/NOPE");
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: "not found" });
+  });
+
+  it("rejects an apn longer than 16 characters", async () => {
+    const res = await create(lead("X".repeat(17)));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a snapshot larger than 64 KB with 413", async () => {
+    const res = await create(lead("BIG", { workDescription: "x".repeat(70 * 1024) }));
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "snapshot too large" });
+  });
+
+  it("rejects notes longer than 2000 characters", async () => {
+    await create(lead("A-1"));
+    expect((await call("/leads/A-1", "PATCH", { notes: "n".repeat(2001) })).status).toBe(400);
+    expect((await call("/leads/A-1", "PATCH", { notes: "n".repeat(2000) })).status).toBe(200);
   });
 
   it("returns 400 with issues for an invalid body", async () => {
