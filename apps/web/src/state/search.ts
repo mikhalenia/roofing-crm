@@ -85,8 +85,9 @@ export type SearchAction =
   | { type: "focusProperty"; focus: Focus }
   | { type: "focusDone" }
   | { type: "hover"; apn: string | null }
-  | { type: "searchSucceeded"; aged: PipelineSearchResponse; open: PipelineSearchResponse }
-  | { type: "searchFailed"; error: string }
+  /** `key` is the searchKey of the request; a response for an older search is dropped. */
+  | { type: "searchSucceeded"; aged: PipelineSearchResponse; open: PipelineSearchResponse; key?: string }
+  | { type: "searchFailed"; error: string; key?: string }
   | { type: "healthLoaded"; snapshot: PipelineSnapshot }
   | { type: "healthFailed"; error: string };
 
@@ -118,6 +119,9 @@ export function mergeResults(
   }
   return [...byApn.values()];
 }
+
+/** A response whose search is no longer the latest one started (any mount of the page). */
+const isStale = (state: SearchState, key: string | undefined) => key !== undefined && key !== state.lastSearchKey;
 
 export function searchReducer(state: SearchState, action: SearchAction): SearchState {
   switch (action.type) {
@@ -155,6 +159,7 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
     case "hover":
       return state.hoverApn === action.apn ? state : { ...state, hoverApn: action.apn };
     case "searchSucceeded":
+      if (isStale(state, action.key)) return state;
       return {
         ...state,
         loading: false,
@@ -164,6 +169,7 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
         snapshot: action.aged.snapshot ?? action.open.snapshot,
       };
     case "searchFailed":
+      if (isStale(state, action.key)) return state;
       // Keep previous results so a transient failure does not blank the table.
       return { ...state, loading: false, error: action.error, pendingSearch: false };
     case "healthLoaded":

@@ -13,11 +13,10 @@ const message = (e: unknown) =>
 /**
  * Searches automatically (debounced) whenever the pin, radius or
  * filters differ from the last search, and returns the search action for "Refresh".
- * Stale responses are ignored.
+ * Stale responses are dropped by the reducer.
  */
 export function useProspectSearch(): () => void {
   const { state, dispatch } = useSearch();
-  const requestId = useRef(0);
 
   const search = useCallback(() => {
     const parsed = SearchParams.safeParse(toSearchParams(state));
@@ -28,15 +27,13 @@ export function useProspectSearch(): () => void {
       });
       return;
     }
-    const id = ++requestId.current;
-    dispatch({ type: "searchStarted", key: searchKey(state) });
+    // The reducer drops a response whose key is no longer the latest search started, even when
+    // it lands after the page was left and mounted again.
+    const key = searchKey(state);
+    dispatch({ type: "searchStarted", key });
     Promise.all([fetchAgedRoofs(parsed.data), fetchOpenPermits(parsed.data)]).then(
-      ([aged, open]) => {
-        if (id === requestId.current) dispatch({ type: "searchSucceeded", aged, open });
-      },
-      (e: unknown) => {
-        if (id === requestId.current) dispatch({ type: "searchFailed", error: message(e) });
-      },
+      ([aged, open]) => dispatch({ type: "searchSucceeded", aged, open, key }),
+      (e: unknown) => dispatch({ type: "searchFailed", error: message(e), key }),
     );
   }, [state, dispatch]);
 

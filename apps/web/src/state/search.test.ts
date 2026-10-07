@@ -203,3 +203,18 @@ describe("searchKey", () => {
     expect(initialState.lastSearchKey).toBeNull();
   });
 });
+
+describe("stale responses", () => {
+  const resp = { snapshot: { runId: "r", manifestCid: null, syncedAt: null }, items: [] };
+  it("drops a success or failure for a search that is no longer the latest", () => {
+    const started = searchReducer(searchReducer(initialState, { type: "searchStarted", key: "old" }), {
+      type: "searchStarted",
+      key: "new",
+    });
+    expect(searchReducer(started, { type: "searchSucceeded", aged: resp, open: resp, key: "old" })).toBe(started);
+    expect(searchReducer(started, { type: "searchFailed", error: "x", key: "old" })).toBe(started);
+    expect(searchReducer(started, { type: "searchSucceeded", aged: resp, open: resp, key: "new" }).loading).toBe(false);
+    // An invalid pin fails without a key and is never dropped.
+    expect(searchReducer(started, { type: "searchFailed", error: "pin" }).error).toBe("pin");
+  });
+});
