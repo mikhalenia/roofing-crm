@@ -10,9 +10,11 @@ snapshot reported by `/health` on https://scc-pipeline-api.mikhalenia-a.workers.
 - **Permits cover the City of San José only.** The snapshot has 494,841 properties county-wide but
   only 93,093 San José permits, of which 7,751 are roofing. A pin in Gilroy or Palo Alto returns
   properties without permit signals. The map defaults to Santa Clara County and the pin is limited to
-  a rectangle around it (`libs/contracts/src/search.ts:16-17`), not the county boundary.
+  a rectangle around it (`libs/contracts/src/search.ts`, `fields.lat`/`fields.lon`), not the county
+  boundary.
 - **No BBB data.** There is no public BBB source in the snapshot, so BBB is always rendered as
-  "not available (no public source)" (`PropertyDrawer.tsx:194`, `ResultsTable.tsx:136`) and
+  "not available (no public source)" (the "Contractor" section of
+  `apps/web/src/components/PropertyDrawer.tsx`; the results table shows no BBB column value) and
   the contract rejects any non-null rating (`bbbRating: z.null()`). The README's "BBB rating where
   available" is therefore met only as an honest "not available".
 - **No year built, so roof age exists only where a completed roofing permit exists.** Roof age is
@@ -20,20 +22,25 @@ snapshot reported by `/health` on https://scc-pipeline-api.mikhalenia-a.workers.
   confidence high or medium). Parcels whose roof was never permitted have no age and cannot appear as
   aged roofs, even if the roof is old. Parcels with roof age 15 years or more: 2,021, of which 962 are
   within 5 miles of downtown San José.
-- **"Open for many years" is mostly "stalled".** Of the 7,751 roofing permits, 6,707 are
-  `expired_unfinaled` (expired without a final inspection), 1,017 are `open` and 27 are `finaled`. A
-  long "days open" figure usually means the permit was never finaled, not that work is in progress.
-  The UI and agent label them "Stalled", or "Expired (work approved)" when every approval was
-  completed (the pipeline's stalled filter excludes those, so most aged-roof rows show this label),
-  and never call them active.
+- **"Open for many years" usually means "expired", and rarely "stalled".** Of the 7,751 roofing
+  permits, 6,707 are `expired_unfinaled` (expired without a final inspection), 1,017 are `open` and
+  27 are `finaled`. A long "open for" figure means the permit was never finaled, not that work is in
+  progress. Most of these had every approval completed: the UI labels them "Expired (work approved)"
+  and only the rest "Stalled" (the pipeline's `isStalled`; labels in `libs/contracts/src/labels.ts`
+  `permitStateShort`). The Prospect "Stalled" filter, the Leads "Stalled" filter
+  (`apps/api/src/leads.ts`, `leads.get`) and the agent (`isStalled` in its tool results) all use
+  the same rule, and none of them calls these permits active.
 - **Owner names come from permits only.** There is no mailing address, no ownership transfer date and
   no assessor owner of record. The "Owners" section shows who appeared on a permit and the date observed.
 - **CSLB licenses are not matched.** Contractor names come from permits; the license number and status
   columns are mostly empty (the drawer shows "CSLB license: not matched").
-- **Search results are capped at 200 per endpoint** (`limit: 200` in `apps/web/src/state/search.ts`,
-  same default for the agent). A count of "200" means "at least 200", not a total. The results table
-  then says "Showing N of at least N", and the agent tools report `fetched`/`capped` so the answer says
-  "at least N matched".
+- **Search results are capped at 200 per endpoint** (`SEARCH_LIMIT` in
+  `apps/web/src/state/search.ts`, the same default for the agent). A count of "200" means "at least
+  200", not a total. When a search hits the cap, the map card says "N properties shown · each search
+  returns at most 200 records per signal, so more match in this radius" (`MapCard.tsx`
+  `statusCaption`). The agent tools report `fetched`/`capped`, and `fixCounts`
+  (`apps/api/src/agent/grounding.ts`) keeps "at least N" only for capped searches, with N the
+  fetched count.
 
 ## Product
 
@@ -82,6 +89,12 @@ Known caveats:
 - **Sources-only answers.** The agent returned a `SOURCES:`-only answer once in production. A repair step
   (commit 6c1e8f9) now makes one tool-free call that rewrites the answer from the tool results already
   fetched. It is unit-tested; the UI also strips the trailing SOURCES line from every answer.
+- **Answer safety nets.** After the model writes, `apps/api/src/agent/grounding.ts` fixes what the
+  tool results contradict:
+  - "stalled" when no shown record is stalled (`groundStalled`);
+  - "in <place>" when every record is in another city (`nearPlace`);
+  - "at least N" counts (`fixCounts`);
+  - an empty SOURCES line when the answer names returned records (`ensureSources`).
 - **Bad tool arguments.** Llama 3.3 sometimes sends a nested call or no coordinates. The search tools
   reject them with "invalid coordinates; call geocode_place first", and the model geocodes and retries
   (seen live on 2026-10-07).
