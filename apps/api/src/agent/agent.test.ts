@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import type { AgentResponse, CreateLead, PipelineLead } from "@crm/contracts";
+import { PERMIT_STATE_LABELS, type AgentResponse, type CreateLead, type PipelineLead } from "@crm/contracts";
 import type { z } from "zod";
 import { MockLanguageModelV4 } from "ai/test";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -274,6 +274,9 @@ describe("runAgent", () => {
     expect(res.answer).toContain("Permit P-1 is stalled. Another is stalled too.");
     expect(gen.seen[0]!.system).toContain('expired_unfinaled -> "Stalled"');
     expect(gen.seen[0]!.system).toMatch(/never the raw tool values/);
+    expect(gen.seen[0]!.system).toContain('Never write "unfinaled"');
+    expect(gen.seen[0]!.system).toContain("if no permit state filter was applied, do not claim a");
+    for (const label of Object.values(PERMIT_STATE_LABELS)) expect(gen.seen[0]!.system).toContain(`"${label}"`);
   });
 
   it("replaces every raw pipeline token in the answer", async () => {
@@ -281,6 +284,7 @@ describe("runAgent", () => {
     expect(
       plainStates("final_date, approval_complete_issue_date, aged_roof, open_permit, stalled_permit, finaled, 'expired_unfinaled'"),
     ).toBe("final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, stalled");
+    expect(plainStates("expired, unfinaled permits")).toBe("stalled (expired without a final inspection) permits");
   });
 
   it("reports capped and shown for search tool calls", async () => {

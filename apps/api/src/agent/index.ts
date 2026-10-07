@@ -1,4 +1,4 @@
-import type { AgentRequest, AgentResponse } from "@crm/contracts";
+import { replaceRawTokens, type AgentRequest, type AgentResponse } from "@crm/contracts";
 import { generateText, type LanguageModel, stepCountIs } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 import { insertLead } from "../leads";
@@ -102,20 +102,9 @@ function sourcesOf(call: StepCall, output: unknown, answer: string): Source[] {
   return rows;
 }
 
-/** Raw pipeline tokens and the friendly names the UI uses (prompt rule 5). */
-const FRIENDLY: ReadonlyArray<[RegExp, string]> = [
-  [/["'`]?\bexpired_unfinaled\b["'`]?/g, "stalled"],
-  [/["'`]?\bapproval_complete_issue_date\b["'`]?/g, "approval completed (issue date)"],
-  [/["'`]?\bfinal_date\b["'`]?/g, "final inspection date"],
-  [/["'`]?\baged_roof\b["'`]?/g, "aged roof"],
-  [/["'`]?\bopen_permit\b["'`]?/g, "open permit"],
-  [/["'`]?\bstalled_permit\b["'`]?/g, "stalled permit"],
-  [/["'`]\bfinaled\b["'`]|\bfinaled\b/g, "completed"],
-];
-
 /** Safety net for prompt rule 5: never show a raw pipeline token to a sales user. */
 export function plainStates(text: string): string {
-  return FRIENDLY.reduce((t, [re, name]) => t.replace(re, name), text);
+  return replaceRawTokens(text);
 }
 
 function errorMessage(error: unknown): string {
