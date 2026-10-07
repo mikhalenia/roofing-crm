@@ -119,5 +119,3 @@ Only what the code reflects: the Vercel AI SDK with Zod tool schemas, as the kit
 `apply-engineering-guidelines` requires, and a retrieval-then-cite agent design (tools retrieve
 pipeline records, the answer may name only returned records, citations are rebuilt in code from tool
 results). No kit agents were used.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
