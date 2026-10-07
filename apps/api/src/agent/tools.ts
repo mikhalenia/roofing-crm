@@ -84,8 +84,7 @@ export function invalidArea(a: { lat: unknown; lon: unknown; radiusMiles?: unkno
   }
   const r = a.radiusMiles == null ? null : loose(a.radiusMiles);
   if (a.radiusMiles != null && (r == null || r < 0.1 || r > 50)) {
-    const shown = typeof a.radiusMiles === "object" ? JSON.stringify(a.radiusMiles) : String(a.radiusMiles);
-    return `invalid radius ${shown}; use 0.1 to 50 miles`;
+    return "invalid radius; use 0.1–50 miles";
   }
   return null;
 }
@@ -94,14 +93,20 @@ const limit = num().int().min(1).max(500).optional().describe("Max records to fe
 
 /** A non-2xx pipeline response, with the pipeline's own explanation. */
 export class PipelineHttpError extends Error {
+  /** The pipeline's reason for a 4xx (at most 200 characters); a fixed text for a 5xx. */
+  readonly detail: string;
   constructor(
     readonly status: number,
     path: string,
-    readonly detail: string,
+    detail: string,
   ) {
-    super(`pipeline API ${status} for ${path}${detail ? `: ${detail}` : ""}`);
+    const shown = status >= 500 ? "pipeline temporarily unavailable" : detail.slice(0, MAX_DETAIL);
+    super(`pipeline API ${status} for ${path}${shown ? `: ${shown}` : ""}`);
+    this.detail = shown;
   }
 }
+
+const MAX_DETAIL = 200;
 
 /** "lon: Too big: expected number to be <=-121.2" from a pipeline error body, or "". */
 async function pipelineMessage(res: Response): Promise<string> {

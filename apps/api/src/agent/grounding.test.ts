@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { type Evidence, ensureSources, fixCounts, groundStalled, nearPlace } from "./grounding";
 
-const ev = (over: Partial<Evidence> = {}): Evidence => ({ places: [], cities: [], shown: 0, stalledShown: 0, ...over });
+const ev = (over: Partial<Evidence> = {}): Evidence => ({
+  places: [],
+  cities: [],
+  shown: 0,
+  stalledShown: 0,
+  approvedShown: 0,
+  ...over,
+});
+const allApproved = (n: number) => ev({ shown: n, stalledShown: 0, approvedShown: n });
 const aged = { name: "find_aged_roofs", args: {}, resultCount: 200, capped: true, shown: 25 };
 
 describe("fixCounts (c)", () => {
@@ -20,21 +28,34 @@ describe("fixCounts (c)", () => {
 });
 
 describe("groundStalled (a)", () => {
-  it("rewrites 'stalled' when no shown record is stalled", () => {
-    expect(groundStalled("These 25 roofs have stalled permits; one is stalled since 2003.", ev({ shown: 25, stalledShown: 0 }))).toBe(
-      "These 25 roofs have permits that expired after all approvals were completed; one is expired (work approved) since 2003.",
+  it("rewrites a positive claim about listed records when every shown record is work-approved", () => {
+    expect(groundStalled("These 25 properties have stalled permits.", allApproved(25))).toBe(
+      "These 25 properties have permits that expired after all approvals were completed.",
     );
-  });
-  it("keeps a true negative claim", () => {
-    const text = "200 roofs matched; none of them have stalled permits. 670 10TH ST has a stalled permit.";
-    expect(groundStalled(text, ev({ shown: 25, stalledShown: 0 }))).toBe(
-      "200 roofs matched; none of them have stalled permits. 670 10TH ST has a permit that expired after all approvals were completed.",
+    expect(groundStalled("Stalled permits at 670 10TH ST and 597 ORVIS AV.", allApproved(25))).toBe(
+      "Permits that expired after all approvals were completed at 670 10TH ST and 597 ORVIS AV.",
     );
+    expect(groundStalled("670 10TH ST is stalled.", allApproved(1))).toBe("670 10TH ST is expired (work approved).");
   });
-  it("keeps 'stalled' when the results contain stalled records, or when nothing was shown", () => {
-    const text = "3 stalled permits matched.";
-    expect(groundStalled(text, ev({ shown: 3, stalledShown: 3 }))).toBe(text);
-    expect(groundStalled(text, ev())).toBe(text);
+  it("never rewrites a denial or a zero count", () => {
+    for (const text of [
+      "I found 0 stalled permits.",
+      "None of the permits are stalled.",
+      "None of these 25 permits are stalled.",
+      "These 25 open permits exclude stalled ones.",
+      "The 25 permits aren't stalled.",
+      "No stalled permits among the 25.",
+    ]) {
+      expect(groundStalled(text, allApproved(25))).toBe(text);
+    }
+  });
+  it("leaves general statements, mixed result sets and empty results alone", () => {
+    expect(groundStalled("Stalled permits are rare.", allApproved(25))).toBe("Stalled permits are rare.");
+    const claim = "These 25 properties have stalled permits.";
+    // Some shown records are open: the work-approved wording would be false for them.
+    expect(groundStalled(claim, ev({ shown: 25, stalledShown: 0, approvedShown: 20 }))).toBe(claim);
+    expect(groundStalled(claim, ev({ shown: 3, stalledShown: 3, approvedShown: 0 }))).toBe(claim);
+    expect(groundStalled(claim, ev())).toBe(claim);
   });
 });
 
@@ -65,6 +86,11 @@ describe("ensureSources (b)", () => {
     expect(ensureSources("A1 is old.", [{ apn: "A1" }], returned).answer).toBe("A1 is old.\nSOURCES: A1");
     expect(ensureSources("A1 is old.\nSOURCES: A1", [{ apn: "A1" }], returned).answer).toBe("A1 is old.\nSOURCES: A1");
     expect(ensureSources("Nothing matched.\nSOURCES: none", [], returned)).toEqual({ answer: "Nothing matched.\nSOURCES: none", sources: [] });
+  });
+  it("matches addresses on word boundaries, case-insensitively", () => {
+    const out = ensureSources("The roof at 11 Main St is old.\nSOURCES:", [], returned);
+    expect(out.sources).toEqual([]);
+    expect(ensureSources("The roof at 1 main st is old.", [], returned).sources.map((s) => s.apn)).toEqual(["A1"]);
   });
   it("adds records named by address to a partial SOURCES line", () => {
     const out = ensureSources("A1 at 1 Main St and also 2 Oak Ave.\nSOURCES: A1, 259", [{ apn: "A1", address: "1 MAIN ST" }], returned);

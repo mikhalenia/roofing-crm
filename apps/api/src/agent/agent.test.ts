@@ -218,7 +218,7 @@ describe("search tool input checks", () => {
       error: expect.stringContaining(INVALID_COORDINATES),
     });
     expect((await exec(tools.search_properties_in_radius, { lat: 37.3, lon: -121.9, radiusMiles: 60 })) as { error: string }).toMatchObject({
-      error: "invalid radius 60; use 0.1 to 50 miles",
+      error: "invalid radius; use 0.1–50 miles",
     });
     expect(urls).toHaveLength(0);
     expect(invalidArea({ lat: "37.3", lon: "-121.9", radiusMiles: "0.1" })).toBeNull();
@@ -249,15 +249,25 @@ describe("search tool input checks", () => {
     });
   });
 
+  it("passes a 4xx reason through truncated, and hides 5xx details", async () => {
+    const respond = (status: number, error: string) =>
+      (async () => new Response(JSON.stringify({ error }), { status })) as unknown as typeof fetch;
+    const long = buildTools("https://pipeline.test", respond(404, "x".repeat(500)), leadStore());
+    await expect(exec(long.get_property, { apn: "A" })).rejects.toThrow(/pipeline API 404 for \/api\/properties\/A: x{200}$/);
+    const down = buildTools("https://pipeline.test", respond(500, "D1_ERROR: secret internals"), leadStore());
+    await expect(exec(down.get_property, { apn: "A" })).rejects.toThrow("pipeline API 500 for /api/properties/A: pipeline temporarily unavailable");
+    await expect(exec(down.find_aged_roofs, AGED)).rejects.toThrow(/temporarily unavailable$/);
+  });
+
   it("rejects a non-numeric radius instead of searching at the default", async () => {
     const { fn, urls } = stubFetch([]);
     const tools = buildTools("https://pipeline.test", fn, leadStore());
     const schema = (tools.find_aged_roofs as unknown as { inputSchema: { parse: (v: unknown) => Record<string, unknown> } }).inputSchema;
     const parsed = schema.parse({ lat: 37.3, lon: -121.9, radiusMiles: "five" });
     expect(parsed["radiusMiles"]).toBe("five");
-    expect(await exec(tools.find_aged_roofs, parsed)).toMatchObject({ error: "invalid radius five; use 0.1 to 50 miles" });
+    expect(await exec(tools.find_aged_roofs, parsed)).toMatchObject({ error: "invalid radius; use 0.1–50 miles" });
     expect(await exec(tools.find_aged_roofs, { lat: 37.3, lon: -121.9, radiusMiles: { n: 5 } })).toMatchObject({
-      error: 'invalid radius {"n":5}; use 0.1 to 50 miles',
+      error: "invalid radius; use 0.1–50 miles",
     });
     expect(urls).toHaveLength(0);
   });

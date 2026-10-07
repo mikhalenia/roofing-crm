@@ -126,6 +126,9 @@ function collectEvidence(evidence: Evidence, call: StepCall, output: unknown): v
     if (typeof it["city"] === "string") evidence.cities.push(it["city"]);
   }
   evidence.shown += o.items.length;
+  evidence.approvedShown += (o.items as Record<string, unknown>[]).filter(
+    (it) => it["permitState"] === "expired_unfinaled" && it["approvalsComplete"] === true,
+  ).length;
   evidence.stalledShown +=
     typeof o.stalledShown === "number"
       ? o.stalledShown
@@ -205,7 +208,7 @@ export async function runAgent(
   const answer = plainStates(text.trim()) || NO_ANSWER;
   const toolCalls: AgentResponse["toolCalls"] = [];
   const returned: Source[] = [];
-  const evidence: Evidence = { places: [], cities: [], shown: 0, stalledShown: 0 };
+  const evidence: Evidence = { places: [], cities: [], shown: 0, stalledShown: 0, approvedShown: 0 };
   for (const step of result.steps) {
     for (const call of step.toolCalls) {
       const res = step.toolResults.find((r) => r.toolCallId === call.toolCallId);
