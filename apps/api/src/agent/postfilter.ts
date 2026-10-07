@@ -54,3 +54,15 @@ export function resolvedFiltersFromCalls(
     ? parsed.data
     : null;
 }
+
+/**
+ * True when an answer lacks the required prose: empty, only a SOURCES line, or fewer than
+ * two sentences before the SOURCES line.
+ */
+export function isDegenerateAnswer(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || /^sources:/i.test(trimmed)) return true;
+  const prose = trimmed.split(/^\s*sources:/im)[0] ?? "";
+  const sentences = prose.match(/[.!?](?=\s|$)/g) ?? [];
+  return sentences.length < 2;
+}

@@ -73,6 +73,8 @@ function scripted(calls: ScriptedCall[], answer: string) {
   const seen: GenOpts[] = [];
   const fn: NonNullable<AgentDeps["generateText"]> = async (opts) => {
     seen.push(opts);
+    if (!opts.tools)
+      return { text: answer, steps: [{ toolCalls: [], toolResults: [], content: [] }] };
     const toolCalls = [];
     const toolResults = [];
     const content = [];
@@ -269,7 +271,7 @@ describe("runAgent", () => {
         model: "test-model",
       },
     );
-    const prepare = gen.seen[0]!.prepareStep;
+    const prepare = gen.seen[0]!.prepareStep!;
     expect(prepare({ stepNumber: 0 })).toBeUndefined();
     expect(prepare({ stepNumber: 1 })).toEqual({ toolChoice: "auto" });
     expect(prepare({ stepNumber: 5 })).toEqual({ toolChoice: "none" });
@@ -279,7 +281,7 @@ describe("runAgent", () => {
     const calls: GenOpts[] = [];
     const tooled = scripted(
       [{ toolName: "geocode_place", input: { name: "Cupertino" } }],
-      "Cupertino.",
+      "Cupertino resolved to its centroid. No records were searched yet.",
     );
     const gen: NonNullable<AgentDeps["generateText"]> = async (opts) => {
       calls.push(opts);
@@ -298,7 +300,7 @@ describe("runAgent", () => {
     expect(res.toolCalls).toEqual([
       { name: "geocode_place", args: { name: "Cupertino" }, resultCount: 1 },
     ]);
-    expect(res.answer).toBe("Cupertino.");
+    expect(res.answer).toBe("Cupertino resolved to its centroid. No records were searched yet.");
   });
 
   it("falls back to a plain message when the model wrote no text", async () => {
@@ -364,6 +366,77 @@ describe("runAgent", () => {
     );
     expect(res.toolCalls[0]!.resultCount).toBe(1);
     expect(res.sources).toEqual([{ apn: "264-12-034", permitNumber: "2019-000002-RS" }]);
+  });
+
+  it("repairs an answer that is only a SOURCES line with one tool-free call", async () => {
+    const tooled = scripted(
+      [{ toolName: "find_aged_roofs", input: AGED }],
+      "SOURCES: 264-12-034, 264-12-035",
+    );
+    const calls: GenOpts[] = [];
+    const prose =
+      "2 properties matched a roof age of at least 20 years within 5 miles. " +
+      "264-12-034 Main St has a 22-year-old roof; its permit expired without a final inspection.\n" +
+      "SOURCES: 264-12-034";
+    const gen: NonNullable<AgentDeps["generateText"]> = async (opts) => {
+      calls.push(opts);
+      return opts.tools
+        ? tooled.fn(opts)
+        : { text: prose, steps: [{ toolCalls: [], toolResults: [], content: [] }] };
+    };
+    const res = await runAgent(
+      env,
+      { question: "Old roofs near San Jose?", context: null },
+      {
+        generateText: gen,
+        fetch: stubFetch([pipelineLead("264-12-034"), pipelineLead("264-12-035")]).fn,
+        leadStore: leadStore(),
+        model: "test-model",
+      },
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.tools).toBeUndefined();
+    expect(calls[1]!.toolChoice).toBe("none");
+    expect(calls[1]!.system).toBe(calls[0]!.system);
+    expect(calls[1]!.prompt).toContain("Old roofs near San Jose?");
+    expect(calls[1]!.prompt).toContain('"apn":"264-12-035"');
+    expect(res.answer).toBe(prose);
+    expect(res.sources.map((s) => s.apn)).toEqual(["264-12-034"]);
+    expect(res.toolCalls).toEqual([{ name: "find_aged_roofs", args: AGED, resultCount: 2 }]);
+  });
+
+  it("keeps the original answer when the repair is degenerate too", async () => {
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "SOURCES: 264-12-034");
+    const res = await runAgent(
+      env,
+      { question: "Old roofs near San Jose?", context: null },
+      {
+        generateText: gen.fn,
+        fetch: stubFetch([pipelineLead("264-12-034")]).fn,
+        leadStore: leadStore(),
+        model: "test-model",
+      },
+    );
+    expect(gen.seen).toHaveLength(2);
+    expect(res.answer).toBe("SOURCES: 264-12-034");
+  });
+
+  it("does not repair an answer that already has prose", async () => {
+    const gen = scripted(
+      [{ toolName: "find_aged_roofs", input: AGED }],
+      "1 property matched. 264-12-034 has a 22-year-old roof.\nSOURCES: 264-12-034",
+    );
+    await runAgent(
+      env,
+      { question: "Old roofs near San Jose?", context: null },
+      {
+        generateText: gen.fn,
+        fetch: stubFetch([pipelineLead("264-12-034")]).fn,
+        leadStore: leadStore(),
+        model: "test-model",
+      },
+    );
+    expect(gen.seen).toHaveLength(1);
   });
 
   it("reports a failed tool call with resultCount 0", async () => {
@@ -472,7 +545,12 @@ describe("runAgent with the real ai generateText loop", () => {
           warnings: [],
         },
         {
-          content: [{ type: "text", text: "The pipeline failed.\nSOURCES: none" }],
+          content: [
+            {
+              type: "text",
+              text: "The pipeline failed. No properties can be named.\nSOURCES: none",
+            },
+          ],
           finishReason: { unified: "stop", raw: undefined },
           usage,
           warnings: [],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSources, resolvedFiltersFromCalls } from "./postfilter";
+import { extractSources, isDegenerateAnswer, resolvedFiltersFromCalls } from "./postfilter";
 
 const results = [
   { apn: "264-12-034", address: "1 Main St" },
@@ -62,5 +62,20 @@ describe("resolvedFiltersFromCalls", () => {
     expect(
       resolvedFiltersFromCalls([{ name: "find_aged_roofs", args: { lat: 10, lon: 10 } }]),
     ).toBeNull();
+  });
+});
+
+describe("isDegenerateAnswer", () => {
+  it.each([
+    ["", true],
+    ["   ", true],
+    ["SOURCES: 47223005, 25946066", true],
+    ["  sources: none", true],
+    ["Found some.\nSOURCES: 1", true],
+    ["Found some", true],
+    ["3 matched within 5 miles. 1 Main St has a 22-year-old roof.\nSOURCES: 1", false],
+    ["3 matched! Roof ages run 20 to 30 years.", false],
+  ])("%j -> %s", (text, expected) => {
+    expect(isDegenerateAnswer(text)).toBe(expected);
   });
 });

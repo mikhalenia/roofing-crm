@@ -2,7 +2,13 @@ import type { AgentRequest, AgentResponse } from "@crm/contracts";
 import { generateText, type LanguageModel, stepCountIs } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 import { insertLead } from "../leads";
-import { extractSources, mentions, resolvedFiltersFromCalls, type Source } from "./postfilter";
+import {
+  extractSources,
+  isDegenerateAnswer,
+  mentions,
+  resolvedFiltersFromCalls,
+  type Source,
+} from "./postfilter";
 import { SYSTEM_PROMPT } from "./prompt";
 import { type AgentTools, buildTools, type LeadStore } from "./tools";
 
@@ -16,10 +22,11 @@ export interface GenerateOptions {
   model: LanguageModel;
   system: string;
   prompt: string;
-  tools: AgentTools;
-  stopWhen: ReturnType<typeof stepCountIs>;
-  toolChoice?: "required";
-  prepareStep: (step: { stepNumber: number }) => { toolChoice: "auto" | "none" } | undefined;
+  /** Absent on the tool-free repair call. */
+  tools?: AgentTools;
+  stopWhen?: ReturnType<typeof stepCountIs>;
+  toolChoice?: "required" | "none";
+  prepareStep?: (step: { stepNumber: number }) => { toolChoice: "auto" | "none" } | undefined;
 }
 interface StepCall {
   toolCallId: string;
@@ -97,6 +104,20 @@ function errorMessage(error: unknown): string {
   return msg.trim() || "tool failed";
 }
 
+/** Asks for the prose answer again, handing over the (already trimmed) tool results. */
+function repairPrompt(question: string, result: GenerateResult): string {
+  const results = result.steps.flatMap((s) =>
+    s.toolResults.map((r) => ({ tool: r.toolName, input: r.input, output: r.output })),
+  );
+  return [
+    `Question: ${question}`,
+    `Tool results (JSON): ${JSON.stringify(results)}`,
+    "Your previous reply had no explanation. Using only these tool results, write 2-5 sentences " +
+      "answering the question (how many matched, the thresholds used, 3-5 concrete examples, caveats), " +
+      "then a final line SOURCES: with at most 10 identifiers you named.",
+  ].join("\n\n");
+}
+
 export async function runAgent(
   env: Cloudflare.Env,
   req: AgentRequest,
@@ -126,7 +147,18 @@ export async function runAgent(
     result = await generate({ ...base, toolChoice: "required" });
   }
 
-  const answer = result.text.trim() || NO_ANSWER;
+  let text = result.text;
+  if (isDegenerateAnswer(text)) {
+    // One tool-free repair call: rewrite the answer from the tool results already fetched.
+    const repaired = await generate({
+      model,
+      system: base.system,
+      prompt: repairPrompt(req.question, result),
+      toolChoice: "none",
+    });
+    if (!isDegenerateAnswer(repaired.text)) text = repaired.text;
+  }
+  const answer = text.trim() || NO_ANSWER;
   const toolCalls: AgentResponse["toolCalls"] = [];
   const returned: Source[] = [];
   for (const step of result.steps) {
