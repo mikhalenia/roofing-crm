@@ -45,6 +45,11 @@ describe("groundStalled (a)", () => {
       "These 25 open permits exclude stalled ones.",
       "The 25 permits aren't stalled.",
       "No stalled permits among the 25.",
+      "These 25 properties don't include stalled permits.",
+      "The 25 properties do not have stalled permits.",
+      "All 25 are non-stalled permits.",
+      "The 25 permits are not stalled.",
+      "25 roofs without stalled permits.",
     ]) {
       expect(groundStalled(text, allApproved(25))).toBe(text);
     }

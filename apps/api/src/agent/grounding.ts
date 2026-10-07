@@ -46,7 +46,8 @@ const startCase = (lead: string, text: string) => (lead[0] === "A" ? text[0]!.to
  * A negation or zero earlier in the same clause as "stalled": "0 stalled", "none of these 25
  * permits are stalled", "isn't stalled", "exclude stalled ones".
  */
-const DENIES = /(?:^|[^\w'])(0|no|none|not|never|zero|neither|nor|without|aren't|isn't|exclud\w*)(?![\w'])[^,;:]*?\bstalled\b/i;
+const DENIES =
+  /(?:^|[^\w'])(0|no|none|not|never|zero|neither|nor|without|aren't|isn't|don't|doesn't|didn't|non|exclud\w*)(?![\w'])[^,;:]*?\bstalled\b/i;
 
 const capitalFirst = (original: string, text: string) =>
   /^[A-Z]/.test(original) ? text[0]!.toUpperCase() + text.slice(1) : text;
