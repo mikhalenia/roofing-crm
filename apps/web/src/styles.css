@@ -1,1 +1,11 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* Search center on the map: a dark dot with a white ring (Leaflet divIcon). */
+.search-pin {
+  background: #1f2933;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(31, 41, 51, 0.45), 0 1px 4px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  cursor: grab;
+}

@@ -47,9 +47,12 @@ interface Props {
   selectedApn?: string | null;
   /** A search hit the fetch limit, so more records may match. */
   capped?: boolean;
+  /** The result hovered here or on the map; its row is highlighted. */
+  hoverApn?: string | null;
+  onHover?: (apn: string | null) => void;
 }
 
-export function ResultsTable({ rows, onSelect, selectedApn = null, capped = false }: Props) {
+export function ResultsTable({ rows, onSelect, selectedApn = null, capped = false, hoverApn = null, onHover }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
     key: "daysOpen",
     dir: "desc",
@@ -116,13 +119,16 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             role="button"
             aria-label={`Open details for ${l.situsAddress ?? l.apn}`}
             onClick={() => onSelect(l.apn)}
+            onMouseEnter={() => onHover?.(l.apn)}
+            onMouseLeave={() => onHover?.(null)}
+            data-hovered={l.apn === hoverApn ? "true" : undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onSelect(l.apn);
               }
             }}
-            sx={{ cursor: "pointer" }}
+            sx={{ cursor: "pointer", ...(l.apn === hoverApn && { bgcolor: "action.hover" }) }}
           >
             <TableCell>{l.situsAddress ?? "-"}</TableCell>
             <TableCell>{l.situsCity ?? "-"}</TableCell>

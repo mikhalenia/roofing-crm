@@ -71,6 +71,11 @@ function FocusButton({ apn }: { apn: string }) {
   );
 }
 
+function RadiusButton() {
+  const { dispatch } = useSearch();
+  return <button type="button" onClick={() => dispatch({ type: "setRadius", radiusMiles: 2 })}>radius 2</button>;
+}
+
 function ApplyButton() {
   const { dispatch } = useSearch();
   return (
@@ -102,7 +107,7 @@ describe("ProspectPage", () => {
 
   it("result markers do not bubble clicks to the map", async () => {
     render(<Wrap><ProspectPage /></Wrap>);
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByText("1 Main St");
     const results = hoisted.markerProps.filter((p) => p["bubblingMouseEvents"] === false);
     expect(results.length).toBeGreaterThan(0);
@@ -111,21 +116,21 @@ describe("ProspectPage", () => {
 
   it("a failed search keeps old rows and shows the banner", async () => {
     render(<Wrap><ProspectPage /></Wrap>);
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByText("1 Main St");
     failSearch = true;
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByText(/Search failed: Pipeline API error 500/)).toBeInTheDocument();
     expect(screen.getByText("1 Main St")).toBeInTheDocument();
   });
 
   it("an out-of-bounds pin skips the search, shows the error and keeps rows", async () => {
     render(<Wrap><ProspectPage /></Wrap>);
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByText("1 Main St");
     const before = searchCalls();
     act(() => hoisted.handlers.click?.({ latlng: { lat: 40, lng: -100 } }));
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(screen.getByText(/Pin must be inside Santa Clara County/)).toBeInTheDocument());
     expect(searchCalls()).toBe(before);
     expect(screen.getByText("1 Main St")).toBeInTheDocument();
@@ -144,5 +149,50 @@ describe("ProspectPage", () => {
     render(<Wrap><FocusButton apn="ZZ" /><ProspectPage /></Wrap>);
     fireEvent.click(screen.getByRole("button", { name: "focus ZZ" }));
     expect(await screen.findByRole("complementary", { name: "Property details" })).toBeInTheDocument();
+  });
+
+  describe("auto-search", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+    const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+    const lastAgedQuery = () =>
+      new URL(fetchMock.mock.calls.map(([u]) => u).filter((u) => u.includes("/aged-roofs")).at(-1)!, "http://x").searchParams;
+
+    it("searches on the first visit after the debounce", async () => {
+      render(<Wrap><ProspectPage /></Wrap>);
+      await tick(399);
+      expect(searchCalls()).toBe(0);
+      await tick(1);
+      expect(searchCalls()).toBe(2);
+    });
+
+    it("a setPin leads to exactly one search after the debounce", async () => {
+      render(<Wrap><ProspectPage /></Wrap>);
+      await tick(400);
+      const base = searchCalls();
+      act(() => hoisted.handlers.click?.({ latlng: { lat: 37.35, lng: -121.95 } }));
+      await tick(399);
+      expect(searchCalls()).toBe(base);
+      await tick(1);
+      expect(searchCalls()).toBe(base + 2);
+      expect(lastAgedQuery().get("lat")).toBe("37.35");
+      await tick(2000);
+      expect(searchCalls()).toBe(base + 2);
+    });
+
+    it("a radius change within the debounce window coalesces into one search", async () => {
+      render(<Wrap><RadiusButton /><ProspectPage /></Wrap>);
+      await tick(400);
+      const base = searchCalls();
+      act(() => hoisted.handlers.click?.({ latlng: { lat: 37.35, lng: -121.95 } }));
+      await tick(200);
+      fireEvent.click(screen.getByRole("button", { name: "radius 2" }));
+      await tick(399);
+      expect(searchCalls()).toBe(base);
+      await tick(1);
+      expect(searchCalls()).toBe(base + 2);
+      expect(lastAgedQuery().get("radiusMiles")).toBe("2");
+      expect(lastAgedQuery().get("lat")).toBe("37.35");
+    });
   });
 });

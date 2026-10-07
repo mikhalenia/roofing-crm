@@ -101,8 +101,11 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
         }
         label="Roofing permits only"
       />
-      <Button variant="contained" onClick={onSearch} disabled={state.loading}>
-        {state.loading ? "Searching…" : "Search"}
+      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+        Results update as you move the pin or change a filter.
+      </Typography>
+      <Button variant="outlined" size="small" onClick={onSearch} disabled={state.loading}>
+        Refresh
       </Button>
     </Stack>
   );

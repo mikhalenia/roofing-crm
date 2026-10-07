@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Box, Button, Drawer, Paper, Stack, useMediaQuery, useTheme } from "@mui/material";
+import { useCallback, useState } from "react";
+import { Box, Button, Drawer, LinearProgress, Paper, Stack, useMediaQuery, useTheme } from "@mui/material";
 import { useAgent } from "../state/AgentContext";
 import { useSearch } from "../state/SearchContext";
 import { AgentPanel } from "../components/AgentPanel";
@@ -20,6 +20,8 @@ export function ProspectPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const search = useProspectSearch();
 
+  const hover = useCallback((apn: string | null) => dispatch({ type: "hover", apn }), [dispatch]);
+  const onPin = useCallback((pin: { lat: number; lon: number }) => dispatch({ type: "setPin", pin }), [dispatch]);
   const panel = <AgentPanel embedded onClose={() => setOpen(false)} />;
   const focus = state.focus;
   return (
@@ -30,7 +32,7 @@ export function ProspectPage() {
           onRadius={(radiusMiles) => dispatch({ type: "setRadius", radiusMiles })}
           onFilters={(filters) => dispatch({ type: "setFilters", filters })}
           onSearch={search}
-          onLocation={(pin) => dispatch({ type: "setPin", pin })}
+          onLocation={onPin}
         />
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -44,16 +46,21 @@ export function ProspectPage() {
             Agent
           </Button>
         </Stack>
+        <Box sx={{ height: 4, mb: 0.5 }}>
+          {state.loading && <LinearProgress aria-label="Searching" />}
+        </Box>
         <Box sx={{ height: 420, mb: 2 }}>
           <MapView
             pin={state.pin}
             radiusMiles={state.radiusMiles}
             minRoofAgeYears={state.filters.minRoofAgeYears}
             rows={state.results}
-            onPin={(pin) => dispatch({ type: "setPin", pin })}
+            onPin={onPin}
             onSelect={setSelected}
             onAsk={askAbout}
             focus={focus}
+            hoverApn={state.hoverApn}
+            onHover={hover}
             onFocusDone={(found) => {
               if (!found && focus) setSelected(focus.apn);
               dispatch({ type: "focusDone" });
@@ -61,7 +68,14 @@ export function ProspectPage() {
           />
         </Box>
         <Box sx={{ overflowX: "auto" }}>
-          <ResultsTable rows={state.results} capped={state.capped} onSelect={setSelected} selectedApn={selected} />
+          <ResultsTable
+            rows={state.results}
+            capped={state.capped}
+            onSelect={setSelected}
+            selectedApn={selected}
+            hoverApn={state.hoverApn}
+            onHover={hover}
+          />
         </Box>
       </Box>
       {wide && agent.open && (

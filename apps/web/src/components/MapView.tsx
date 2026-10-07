@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PipelineLead } from "@crm/contracts";
-import { Circle, CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { divIcon, type LeafletEventHandlerFnMap, type Marker as LeafletMarker } from "leaflet";
+import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { markerColor, type Focus, type ResultRow } from "../state/search";
+import { hoverText } from "../state/labels";
 import { MarkerPopup } from "./MarkerPopup";
 
 const MILES_TO_METERS = 1609.344;
@@ -20,6 +22,28 @@ interface Props {
   focus?: Focus | null;
   /** Called once per focus; `found` is false when the APN is not in `rows`. */
   onFocusDone?: (found: boolean) => void;
+  /** The result hovered here or in the table. */
+  hoverApn?: string | null;
+  onHover?: (apn: string | null) => void;
+}
+
+/** The search center: a dark dot with a white ring, draggable to move the search. */
+const PIN_ICON = divIcon({ className: "search-pin", iconSize: [16, 16], iconAnchor: [8, 8] });
+
+function SearchPin({ pin, onPin }: Pick<Props, "pin" | "onPin">) {
+  const position = useMemo<[number, number]>(() => [pin.lat, pin.lon], [pin.lat, pin.lon]);
+  const handlers = useMemo<LeafletEventHandlerFnMap>(
+    () => ({
+      dragend: (e) => {
+        const { lat, lng } = (e.target as LeafletMarker).getLatLng();
+        onPin({ lat, lon: lng });
+      },
+    }),
+    [onPin],
+  );
+  return (
+    <Marker position={position} icon={PIN_ICON} draggable keyboard={false} title="Search center (drag to move)" eventHandlers={handlers} />
+  );
 }
 
 const FOCUS_ZOOM = 16;
@@ -85,6 +109,7 @@ function ResultPopup({
 
 export function MapView(props: Props) {
   const { pin, radiusMiles, minRoofAgeYears, rows, onPin, onSelect, onAsk, focus = null, onFocusDone } = props;
+  const { hoverApn = null, onHover } = props;
   const [popup, setPopup] = useState<OpenPopup | null>(null);
   const popupRow = popup ? rows.find((r) => r.lead.apn === popup.apn) : undefined;
   return (
@@ -105,23 +130,28 @@ export function MapView(props: Props) {
         onOpen={(apn) => setPopup({ apn, autoPan: false })}
         onDone={(found) => onFocusDone?.(found)}
       />
-      <CircleMarker center={[pin.lat, pin.lon]} radius={5} interactive={false} pathOptions={{ color: "#000", fillColor: "#fff", fillOpacity: 1, weight: 2 }} />
       <Circle center={[pin.lat, pin.lon]} radius={radiusMiles * MILES_TO_METERS} pathOptions={{ color: "#1565c0", fillOpacity: 0.05 }} />
       {rows.map((row) => {
         const color = markerColor(row, minRoofAgeYears);
+        const hovered = row.lead.apn === hoverApn;
         return (
           <CircleMarker
             key={row.lead.apn}
             center={[row.lead.lat, row.lead.lon]}
-            radius={7}
+            radius={hovered ? 10 : 7}
             bubblingMouseEvents={false}
-            pathOptions={{ color, fillColor: color, fillOpacity: 0.8 }}
-            eventHandlers={{ click: () => setPopup({ apn: row.lead.apn, autoPan: true }) }}
+            pathOptions={{ color: hovered ? "#212121" : color, fillColor: color, fillOpacity: 0.8 }}
+            eventHandlers={{
+              click: () => setPopup({ apn: row.lead.apn, autoPan: true }),
+              mouseover: () => onHover?.(row.lead.apn),
+              mouseout: () => onHover?.(null),
+            }}
           >
-            <Tooltip>{row.lead.situsAddress ?? row.lead.apn}</Tooltip>
+            <Tooltip>{hoverText(row.lead)}</Tooltip>
           </CircleMarker>
         );
       })}
+      <SearchPin pin={pin} onPin={onPin} />
       {popupRow && (
         <ResultPopup
           key={popupRow.lead.apn}

@@ -84,4 +84,16 @@ describe("ResultsTable", () => {
     rerender(<ResultsTable rows={rows} capped onSelect={() => undefined} />);
     expect(screen.getByText(/Showing 2 of at least 2/)).toBeInTheDocument();
   });
+
+  it("reports row hover and highlights the hovered row", () => {
+    const onHover = vi.fn();
+    render(<ResultsTable rows={rows} onSelect={() => undefined} hoverApn="A" onHover={onHover} />);
+    const a = screen.getByRole("button", { name: "Open details for 1 Short St" });
+    expect(a).toHaveAttribute("data-hovered", "true");
+    expect(screen.getByRole("button", { name: "Open details for 2 Long St" })).not.toHaveAttribute("data-hovered");
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Open details for 2 Long St" }));
+    expect(onHover).toHaveBeenLastCalledWith("B");
+    fireEvent.mouseLeave(a);
+    expect(onHover).toHaveBeenLastCalledWith(null);
+  });
 });
