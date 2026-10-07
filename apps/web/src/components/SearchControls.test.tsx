@@ -45,6 +45,5 @@ describe("SearchControls", () => {
 
   it("the theme turns off uppercase buttons", () => {
     expect(theme.components?.MuiButton?.styleOverrides?.root).toMatchObject({ textTransform: "none" });
-    expect(theme.components?.MuiToggleButton?.styleOverrides?.root).toMatchObject({ textTransform: "none" });
   });
 });

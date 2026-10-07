@@ -11,7 +11,7 @@ import {
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import type { Focus, ResultRow } from "../state/search";
 import { hoverLines } from "../labels";
-import { DENSE_MARKERS, PIN_COLOR, markerKind, markerStyle, tooltipPlacement } from "./mapStyle";
+import { PIN_COLOR, markerKind, markerStyle, tooltipPlacement } from "./mapStyle";
 import { MarkerPopup } from "./MarkerPopup";
 
 const MILES_TO_METERS = 1609.344;
@@ -34,6 +34,8 @@ interface Props {
   onHover?: (apn: string | null) => void;
   /** Number of result markers inside the visible map bounds (after moves, zooms and new results). */
   onViewCount?: (count: number) => void;
+  /** More markers in view than DENSE_MARKERS: draw them smaller. The parent owns the count. */
+  dense?: boolean;
 }
 
 /** The search center: a dark dot with a white ring, draggable to move the search. */
@@ -179,18 +181,10 @@ function ResultPopup({
 
 export function MapView(props: Props) {
   const { pin, radiusMiles, rows, onPin, onSelect, onAsk, focus = null, onFocusDone } = props;
-  const { hoverApn = null, onHover, onViewCount } = props;
+  const { hoverApn = null, onHover, onViewCount, dense = false } = props;
   const [popup, setPopup] = useState<OpenPopup | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
-  const [inView, setInView] = useState(rows.length);
-  const countInView = useCallback(
-    (n: number) => {
-      setInView(n);
-      onViewCount?.(n);
-    },
-    [onViewCount],
-  );
-  const dense = inView > DENSE_MARKERS;
+  const countInView = useCallback((n: number) => onViewCount?.(n), [onViewCount]);
   const popupRow = popup ? rows.find((r) => r.lead.apn === popup.apn) : undefined;
   return (
     <MapContainer

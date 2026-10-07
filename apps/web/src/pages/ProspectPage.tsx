@@ -8,7 +8,8 @@ import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
 import { SearchControls } from "../components/SearchControls";
-import { SnapshotBanner } from "../components/SnapshotBanner";
+import { SearchErrorAlert } from "../components/SearchErrorAlert";
+import { DENSE_MARKERS } from "../components/mapStyle";
 import { useProspectSearch } from "./useProspectSearch";
 
 const AGENT_WIDTH = 380;
@@ -41,7 +42,7 @@ export function ProspectPage() {
         />
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <SnapshotBanner searchError={state.error} />
+        <SearchErrorAlert error={state.error} />
         <MapCard
           radiusMiles={state.radiusMiles}
           pin={state.pin}
@@ -67,6 +68,7 @@ export function ProspectPage() {
               dispatch({ type: "focusDone" });
             }}
             onViewCount={setInView}
+            dense={inView > DENSE_MARKERS}
           />
         </MapCard>
         <Box sx={{ overflowX: "auto" }}>
