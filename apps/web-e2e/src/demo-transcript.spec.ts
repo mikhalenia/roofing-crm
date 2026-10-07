@@ -97,16 +97,16 @@ test("README demo transcript", async ({ page, request }) => {
       await expect(rows.first()).toBeVisible({ timeout: 30_000 });
       expect(await rows.count()).toBeGreaterThan(0);
       await expect(page.locator("path.result-marker--aged_roof").first()).toBeAttached();
-      await expect(page.getByRole("note", { name: "Map legend" })).toBeVisible();
-      await expect(page.getByTestId("map-status")).toContainText(/Showing (at least )?\d+ propert/);
+      await expect(page.getByRole("list", { name: "Map legend" })).toBeVisible();
+      await expect(page.getByTestId("map-status")).toContainText(/matching propert|of at least [\d,]+ matches/);
       await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
       await page.locator("path.result-marker").first().hover({ force: true });
-      await expect(page.locator(".leaflet-tooltip").first()).toContainText(/roof (\d+ yrs|age unknown)/);
+      await expect(page.locator(".leaflet-tooltip").first()).toContainText(/Roof (\d+ yrs|age unknown)/);
       await shot(page, "04-results");
     });
 
     await test.step("05 sort by days open", async () => {
-      const header = page.getByRole("columnheader", { name: "Days open" });
+      const header = page.getByRole("columnheader", { name: "Open for" });
       await header.getByRole("button").click();
       await header.getByRole("button").click();
       await expect(header).toHaveAttribute("aria-sort", "descending");
@@ -125,7 +125,7 @@ test("README demo transcript", async ({ page, request }) => {
         const cells = rows.nth(i).locator("td");
         const state = (await cells.nth(stateCol).textContent())?.trim();
         const contractor = (await cells.nth(contractorCol).textContent())?.trim();
-        if ((state === "open" || state === "expired_unfinaled") && contractor && contractor !== "-") {
+        if ((state === "Open" || state === "Stalled") && contractor && contractor !== "-") {
           row = rows.nth(i);
           break;
         }
@@ -163,7 +163,8 @@ test("README demo transcript", async ({ page, request }) => {
       const answer = panel.getByTestId("agent-answer");
       await expect(answer).toBeVisible({ timeout: 90_000 });
       expect(((await answer.textContent()) ?? "").trim().length).toBeGreaterThan(40);
-      await expect(panel.getByTestId("agent-tool-calls")).toContainText("get_property");
+      await expect(panel.getByTestId("agent-tool-calls")).toContainText("Looked up a property");
+      await page.evaluate(() => window.scrollTo(0, 0));
       await shot(page, "08-ask-agent");
     });
 
@@ -189,6 +190,7 @@ test("README demo transcript", async ({ page, request }) => {
           await expect(popup.getByRole("button", { name: "Already a lead" })).toBeVisible();
         }
       }
+      await page.evaluate(() => window.scrollTo(0, 0));
       await shot(page, "09-saved");
     });
 
@@ -198,7 +200,24 @@ test("README demo transcript", async ({ page, request }) => {
       const row = page.getByRole("row", { name: new RegExp(escapeRe(address)) });
       await expect(row).toBeVisible({ timeout: 20_000 });
       await expect(row.getByRole("button", { name: `Show ${address} on map` })).toBeVisible();
+      if (!savedThisRun) {
+        await shot(page, "10-leads");
+        return; // never edit or delete a lead this run did not create
+      }
+      // Status change goes through PATCH /leads/:apn.
+      const patched = page.waitForResponse((r) => r.url().includes("/leads/") && r.request().method() === "PATCH");
+      await row.getByRole("combobox", { name: `Status for ${address}` }).click();
+      await page.getByRole("option", { name: "Contacted" }).click();
+      expect((await patched).ok()).toBe(true);
+      await expect(row.getByRole("combobox", { name: `Status for ${address}` })).toHaveText("Contacted");
       await shot(page, "10-leads");
+      // Delete through the UI so production keeps no demo lead.
+      const deleted = page.waitForResponse((r) => r.url().includes("/leads/") && r.request().method() === "DELETE");
+      await row.getByRole("button", { name: `Delete ${address}` }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+      expect((await deleted).ok()).toBe(true);
+      savedThisRun = false;
+      await expect(page.getByRole("row", { name: new RegExp(escapeRe(address)) })).toHaveCount(0);
     });
 
     await test.step("11 agent page", async () => {
