@@ -5,6 +5,10 @@ import type {
   SearchParamsOutput,
 } from "@crm/contracts";
 
+import type { z } from "zod";
+import type { PartialSearchParams as PartialSearchParamsSchema } from "@crm/contracts";
+type PartialSearchParams = z.infer<typeof PartialSearchParamsSchema>;
+
 export type Signal = "aged_roof" | "open_permit" | "stalled_permit";
 
 export interface ResultRow {
@@ -50,6 +54,7 @@ export type SearchAction =
   | { type: "setPin"; pin: { lat: number; lon: number } }
   | { type: "setRadius"; radiusMiles: number }
   | { type: "setFilters"; filters: Partial<Filters> }
+  | { type: "applyParams"; params: PartialSearchParams }
   | { type: "searchStarted" }
   | { type: "searchSucceeded"; aged: PipelineSearchResponse; open: PipelineSearchResponse }
   | { type: "searchFailed"; error: string }
@@ -93,6 +98,18 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
       return { ...state, radiusMiles: action.radiusMiles };
     case "setFilters":
       return { ...state, filters: { ...state.filters, ...action.filters } };
+    case "applyParams": {
+      const { lat, lon, radiusMiles, limit: _limit, ...filters } = action.params;
+      return {
+        ...state,
+        pin: lat != null && lon != null ? { lat, lon } : state.pin,
+        radiusMiles: radiusMiles ?? state.radiusMiles,
+        filters: {
+          ...state.filters,
+          ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined)),
+        },
+      };
+    }
     case "searchStarted":
       return { ...state, loading: true, error: null };
     case "searchSucceeded":

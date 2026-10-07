@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Paper } from "@mui/material";
 import { SearchParams } from "@crm/contracts";
 import { PipelineError, fetchAgedRoofs, fetchHealth, fetchOpenPermits } from "../api/pipeline";
-import { initialState, searchReducer, toSearchParams } from "../state/search";
+import { toSearchParams } from "../state/search";
+import { useSearch } from "../state/SearchContext";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
@@ -13,7 +14,7 @@ const message = (e: unknown) =>
   e instanceof PipelineError || e instanceof Error ? e.message : "Unknown error";
 
 export function ProspectPage() {
-  const [state, dispatch] = useReducer(searchReducer, initialState);
+  const { state, dispatch } = useSearch();
   const [selected, setSelected] = useState<string | null>(null);
   const requestId = useRef(0);
 
@@ -22,7 +23,7 @@ export function ProspectPage() {
       (h) => dispatch({ type: "healthLoaded", snapshot: h.snapshot }),
       (e: unknown) => dispatch({ type: "healthFailed", error: message(e) }),
     );
-  }, []);
+  }, [dispatch]);
 
   const search = useCallback(() => {
     const parsed = SearchParams.safeParse(toSearchParams(state));
@@ -43,7 +44,7 @@ export function ProspectPage() {
         if (id === requestId.current) dispatch({ type: "searchFailed", error: message(e) });
       },
     );
-  }, [state]);
+  }, [state, dispatch]);
 
   return (
     <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}>
@@ -72,7 +73,7 @@ export function ProspectPage() {
           <ResultsTable rows={state.results} onSelect={setSelected} selectedApn={selected} />
         </Box>
       </Box>
-      <PropertyDrawer apn={selected} onClose={() => setSelected(null)} />
+      <PropertyDrawer apn={selected} snapshot={state.results.find((r) => r.lead.apn === selected)?.lead} onClose={() => setSelected(null)} />
     </Box>
   );
 }

@@ -61,3 +61,56 @@ export async function stubFetch(url: string): Promise<Response> {
   }
   return json({ error: "not found" }, 404);
 }
+
+// ---- CRM API stub (in-memory leads + canned agent answer) ----
+interface StubLead {
+  apn: string;
+  status: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  snapshot: unknown;
+}
+const stubLeads = new Map<string, StubLead>();
+
+export async function stubCrmFetch(url: string, init?: RequestInit): Promise<Response> {
+  const u = new URL(url, "http://stub.local");
+  const method = init?.method ?? "GET";
+  const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+  if (u.pathname === "/agent" && method === "POST") {
+    const first = items[0];
+    return json({
+      answer: "Stub answer.\nTwo properties match your question.",
+      toolCalls: [{ name: "search_aged_roofs", args: { minRoofAgeYears: 15 }, resultCount: items.length }],
+      sources: first ? [{ apn: first.apn, address: first.situsAddress, permitNumber: first.permitNumber }] : [],
+      resolvedFilters: { lat: 37.3382, lon: -121.8863, radiusMiles: 5, minRoofAgeYears: 15 },
+    });
+  }
+  if (u.pathname === "/leads" && method === "GET") {
+    const status = u.searchParams.get("status");
+    return json([...stubLeads.values()].filter((l) => !status || l.status === status));
+  }
+  if (u.pathname === "/leads" && method === "POST") {
+    const apn = String(body["apn"]);
+    if (stubLeads.has(apn)) return json({ error: "lead exists" }, 409);
+    const now = new Date().toISOString();
+    const lead = { apn, status: "new", notes: "", createdAt: now, updatedAt: now, snapshot: body["snapshot"] };
+    stubLeads.set(apn, lead);
+    return json(lead, 201);
+  }
+  const m = /^\/leads\/(.+)$/.exec(u.pathname);
+  if (m) {
+    const apn = decodeURIComponent(m[1] ?? "");
+    const lead = stubLeads.get(apn);
+    if (!lead) return json({ error: "not found" }, 404);
+    if (method === "PATCH") {
+      stubLeads.set(apn, { ...lead, ...body, updatedAt: new Date().toISOString() });
+      return json(stubLeads.get(apn));
+    }
+    if (method === "DELETE") {
+      stubLeads.delete(apn);
+      return new Response(null, { status: 204 });
+    }
+  }
+  return json({ error: "not found" }, 404);
+}

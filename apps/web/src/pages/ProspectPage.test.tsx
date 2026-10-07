@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchProvider } from "../state/SearchContext";
 import { ProspectPage } from "./ProspectPage";
 
 const hoisted = vi.hoisted(() => ({
@@ -49,7 +50,7 @@ const searchCalls = () => fetchMock.mock.calls.filter(([u]) => u.includes("/api/
 
 describe("ProspectPage", () => {
   it("result markers do not bubble clicks to the map", async () => {
-    render(<ProspectPage />);
+    render(<SearchProvider><ProspectPage /></SearchProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     const results = hoisted.markerProps.filter((p) => p["bubblingMouseEvents"] === false);
@@ -58,7 +59,7 @@ describe("ProspectPage", () => {
   });
 
   it("a failed search keeps old rows and shows the banner", async () => {
-    render(<ProspectPage />);
+    render(<SearchProvider><ProspectPage /></SearchProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     failSearch = true;
@@ -68,7 +69,7 @@ describe("ProspectPage", () => {
   });
 
   it("an out-of-bounds pin skips the search, shows the error and keeps rows", async () => {
-    render(<ProspectPage />);
+    render(<SearchProvider><ProspectPage /></SearchProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await screen.findByText("1 Main St");
     const before = searchCalls();

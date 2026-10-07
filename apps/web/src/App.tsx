@@ -13,6 +13,7 @@ import { FutureNav } from "./components/FutureNav";
 import { AgentPage } from "./pages/AgentPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { ProspectPage } from "./pages/ProspectPage";
+import { SearchProvider } from "./state/SearchContext";
 
 const NAV_WIDTH = 220;
 const NAV = [
@@ -21,7 +22,7 @@ const NAV = [
   { to: "/agent", label: "Agent" },
 ];
 
-export function App() {
+function Shell() {
   const { pathname } = useLocation();
   return (
     <Box sx={{ display: "flex" }}>
@@ -53,6 +54,14 @@ export function App() {
         </Routes>
       </Box>
     </Box>
+  );
+}
+
+export function App() {
+  return (
+    <SearchProvider>
+      <Shell />
+    </SearchProvider>
   );
 }
 

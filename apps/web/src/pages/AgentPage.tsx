@@ -1,5 +1,5 @@
-import { Typography } from "@mui/material";
+import { AgentPanel } from "../components/AgentPanel";
 
 export function AgentPage() {
-  return <Typography>The assistant agent will appear here in a later release.</Typography>;
+  return <AgentPanel />;
 }

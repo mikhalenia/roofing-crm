@@ -150,3 +150,16 @@ describe("markerColor", () => {
     expect(markerColor(mk(["stalled_permit", "open_permit"]), 15)).toBe("#ed6c02");
   });
 });
+
+describe("applyParams", () => {
+  it("applies pin, radius and filters, ignoring limit and undefined", () => {
+    const next = searchReducer(initialState, {
+      type: "applyParams",
+      params: { lat: 37.4, lon: -122.1, radiusMiles: 3, minRoofAgeYears: 25, limit: 50 },
+    });
+    expect(next.pin).toEqual({ lat: 37.4, lon: -122.1 });
+    expect(next.radiusMiles).toBe(3);
+    expect(next.filters).toEqual({ ...initialState.filters, minRoofAgeYears: 25 });
+    expect(searchReducer(initialState, { type: "applyParams", params: {} })).toEqual(initialState);
+  });
+});

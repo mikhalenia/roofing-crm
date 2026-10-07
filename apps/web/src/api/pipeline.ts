@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requestJson } from "./http";
 import {
   PipelineSearchResponse,
   PipelineSnapshot,
@@ -87,7 +88,7 @@ export function apiBase(): string {
   return (import.meta.env.VITE_PIPELINE_API ?? "").replace(/\/$/, "");
 }
 
-async function rawFetch(url: string): Promise<Response> {
+async function pipelineFetch(url: string): Promise<Response> {
   if (import.meta.env.VITE_USE_STUB === "true") {
     const { stubFetch } = await import("../dev/stub");
     return stubFetch(url);
@@ -95,7 +96,7 @@ async function rawFetch(url: string): Promise<Response> {
   return fetch(url);
 }
 
-async function getJson<T>(
+function getJson<T>(
   path: string,
   query: Record<string, string | number | boolean>,
   schema: z.ZodType<T>,
@@ -103,30 +104,13 @@ async function getJson<T>(
   const qs = new URLSearchParams(
     Object.entries(query).map(([k, v]) => [k, String(v)]),
   ).toString();
-  const url = `${apiBase()}${path}${qs ? `?${qs}` : ""}`;
-  let res: Response;
-  try {
-    res = await rawFetch(url);
-  } catch (e) {
-    throw new PipelineError(
-      `Pipeline API unreachable: ${e instanceof Error ? e.message : String(e)}`,
-      0,
-    );
-  }
-  if (!res.ok) {
-    throw new PipelineError(`Pipeline API error ${res.status}`, res.status);
-  }
-  let body: unknown;
-  try {
-    body = await res.json();
-  } catch {
-    throw new PipelineError("Pipeline API returned invalid JSON", res.status);
-  }
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    throw new PipelineError("Pipeline API returned an unexpected response", res.status);
-  }
-  return parsed.data;
+  return requestJson({
+    url: `${apiBase()}${path}${qs ? `?${qs}` : ""}`,
+    schema,
+    fetcher: pipelineFetch,
+    label: "Pipeline API",
+    makeError: (m, s) => new PipelineError(m, s),
+  });
 }
 
 export type SearchQuery = SearchParamsOutput;
