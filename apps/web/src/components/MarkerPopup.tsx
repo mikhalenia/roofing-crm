@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { PipelineLead } from "@crm/contracts";
-import { permitStateLabel, roofAgeText } from "../state/labels";
+import { formatCount, permitStateLabel, roofAgeText } from "../state/labels";
 import { useLeadSave } from "./useLeadSave";
 
 interface Props {
@@ -15,7 +15,7 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
   const known = isKnown(l.apn);
   const noCoords = !Number.isFinite(l.lat) || !Number.isFinite(l.lon);
   const permit = l.permitNumber
-    ? `Permit ${l.permitNumber}: ${permitStateLabel(l.permitState)}${l.daysOpen != null ? `, ${l.daysOpen} days open` : ""}`
+    ? `Permit ${l.permitNumber}: ${permitStateLabel(l.permitState)}${l.daysOpen != null ? `, ${formatCount(l.daysOpen)} days open` : ""}`
     : "No permit on record";
   return (
     <Box sx={{ minWidth: 240, maxWidth: 300 }} role="dialog" aria-label={`Property ${l.situsAddress ?? l.apn}`}>

@@ -3,7 +3,7 @@ import type { PipelineLead } from "@crm/contracts";
 import { divIcon, type LeafletEventHandlerFnMap, type Marker as LeafletMarker } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import type { Focus, ResultRow } from "../state/search";
-import { hoverText } from "../state/labels";
+import { hoverLines } from "../state/labels";
 import { DENSE_MARKERS, PIN_COLOR, markerStyle } from "./mapStyle";
 import { MarkerPopup } from "./MarkerPopup";
 
@@ -114,6 +114,19 @@ function TrackView({ rows, onCount }: { rows: ResultRow[]; onCount: (n: number) 
   return null;
 }
 
+function HoverCard({ lead }: { lead: PipelineLead }) {
+  const [title, roof, permit] = hoverLines(lead);
+  return (
+    <>
+      <strong>{title}</strong>
+      <br />
+      {roof}
+      <br />
+      {permit}
+    </>
+  );
+}
+
 interface OpenPopup {
   apn: string;
   /** False when opened by a focus: flyTo already centers it and autoPan would cut the flight short. */
@@ -175,14 +188,16 @@ export function MapView(props: Props) {
         center={[pin.lat, pin.lon]}
         radius={radiusMiles * MILES_TO_METERS}
         interactive={false}
-        pathOptions={{ className: "search-radius", color: PIN_COLOR, weight: 2, fillColor: PIN_COLOR, fillOpacity: 0.05 }}
+        className="search-radius"
+        pathOptions={{ color: PIN_COLOR, weight: 2, fillColor: PIN_COLOR, fillOpacity: 0.05 }}
       />
       {popupRow && (
         <CircleMarker
           center={[popupRow.lead.lat, popupRow.lead.lon]}
           radius={16}
           interactive={false}
-          pathOptions={{ className: "result-halo", stroke: false, fillColor: PIN_COLOR, fillOpacity: 0.18 }}
+          className="result-halo"
+          pathOptions={{ stroke: false, fillColor: PIN_COLOR, fillOpacity: 0.18 }}
         />
       )}
       {rows.map((row) => {
@@ -193,6 +208,7 @@ export function MapView(props: Props) {
             key={row.lead.apn}
             center={[row.lead.lat, row.lead.lon]}
             radius={style.radius}
+            className={style.className}
             bubblingMouseEvents={false}
             pathOptions={style.pathOptions}
             eventHandlers={{
@@ -201,7 +217,9 @@ export function MapView(props: Props) {
               mouseout: () => onHover?.(null),
             }}
           >
-            <Tooltip>{hoverText(row.lead)}</Tooltip>
+            <Tooltip direction="top" offset={[0, -6]} sticky={false} className="result-tooltip">
+              <HoverCard lead={row.lead} />
+            </Tooltip>
           </CircleMarker>
         );
       })}

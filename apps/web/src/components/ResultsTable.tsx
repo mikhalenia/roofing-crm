@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import type { ResultRow } from "../state/search";
+import { formatCount } from "../state/labels";
 
 type SortKey = "address" | "city" | "roofAge" | "state" | "daysOpen" | "distance";
 
@@ -149,7 +150,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             </TableCell>
             <TableCell>{l.permitNumber ?? "-"}</TableCell>
             <TableCell>{l.permitState ? (STATE_LABEL[l.permitState] ?? l.permitState) : "-"}</TableCell>
-            <TableCell>{l.daysOpen ?? "-"}</TableCell>
+            <TableCell>{l.daysOpen != null ? formatCount(l.daysOpen) : "-"}</TableCell>
             <TableCell>{l.contractorCompany ?? "-"}</TableCell>
             <TableCell>
               <Tooltip title={l.cslbStatus ? `CSLB status: ${l.cslbStatus}` : "CSLB status unknown"}>

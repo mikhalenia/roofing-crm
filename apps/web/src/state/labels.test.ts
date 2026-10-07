@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
-import { friendlyDate, hoverText, permitStateLabel, roofAgeText } from "./labels";
+import { formatCount, friendlyDate, hoverLines, permitStateLabel, roofAgeText } from "./labels";
 
 const lead = (over: Partial<PipelineLead> = {}) =>
   ({ apn: "A1", situsAddress: "1 Main St", lat: 37.3, lon: -121.9, bbbRating: null, distanceMiles: 1,
@@ -19,11 +19,12 @@ describe("labels", () => {
     );
     expect(roofAgeText(lead())).toBe("Roof age unknown");
   });
-  it("builds the hover line", () => {
-    expect(hoverText(lead({ roofAgeYears: 22, permitState: "open", daysOpen: 300 }))).toBe(
-      "1 Main St · roof 22 yrs · Open · 300 days open",
-    );
-    expect(hoverText(lead({ situsAddress: null }))).toBe("A1 · roof age unknown · No permit");
+  it("builds the three hover lines with short state labels and separators", () => {
+    expect(
+      hoverLines(lead({ roofAgeYears: 21, roofAgeConfidence: "medium", permitState: "expired_unfinaled", daysOpen: 7842 })),
+    ).toEqual(["1 Main St", "Roof 21 yrs (medium confidence)", "Stalled · 7,842 days open"]);
+    expect(hoverLines(lead({ situsAddress: null }))).toEqual(["A1", "Roof age unknown", "No permit"]);
+    expect(formatCount(1234567)).toBe("1,234,567");
   });
   it("formats dates for people", () => {
     expect(friendlyDate("2026-10-07T00:00:00Z")).toBe("Oct 7, 2026");

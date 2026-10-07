@@ -119,8 +119,11 @@ describe("MapView", () => {
   it("shows a hover tooltip per marker and reports hover in and out", () => {
     const onHover = vi.fn();
     render(<MapView {...props} onHover={onHover} />);
-    const tooltip = markerFor("A1")["children"] as { props: { children: string } };
-    expect(tooltip.props.children).toBe("A1 Main St · roof 22 yrs · No permit");
+    const tooltip = markerFor("A1")["children"] as { props: Record<string, unknown> };
+    expect(tooltip.props).toMatchObject({ direction: "top", sticky: false, className: "result-tooltip" });
+    const { container } = render(<>{tooltip.props["children"] as ReactNode}</>);
+    expect(container.textContent).toBe("A1 Main StRoof 22 yrsNo permit");
+    expect(markerFor("A1")["className"]).toBe("result-marker result-marker--aged_roof");
     const handlers = markerFor("A1")["eventHandlers"] as Record<string, () => void>;
     act(() => handlers["mouseover"]!());
     expect(onHover).toHaveBeenLastCalledWith("A1");

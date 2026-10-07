@@ -29,21 +29,28 @@ export const hasBothSignals = (signals: ReadonlySet<Signal>) =>
 
 export interface MarkerStyle {
   radius: number;
+  /**
+   * Fixed at creation: react-leaflet applies later pathOptions with setStyle, which ignores
+   * className, so it is passed as a CircleMarker prop and does not track focus.
+   */
+  className: string;
   pathOptions: PathOptions;
 }
 
 export function markerStyle(signals: ReadonlySet<Signal>, focused: boolean, dense = false): MarkerStyle {
   const kind = markerKind(signals);
   const s = SIGNAL_STYLE[kind];
-  const className = `result-marker result-marker--${kind}${focused ? " result-marker--focused" : ""}`;
+  const className = `result-marker result-marker--${kind}`;
   if (focused) {
     return {
       radius: 9,
-      pathOptions: { className, color: FOCUS_STROKE, weight: 2, fillColor: s.strong, fillOpacity: 0.95 },
+      className,
+      pathOptions: { color: FOCUS_STROKE, weight: 2, fillColor: s.strong, fillOpacity: 0.95 },
     };
   }
   return {
     radius: dense ? 4 : hasBothSignals(signals) ? 6 : 5,
-    pathOptions: { className, color: s.stroke, weight: 1.5, fillColor: s.fill, fillOpacity: 0.7 },
+    className,
+    pathOptions: { color: s.stroke, weight: 1.5, fillColor: s.fill, fillOpacity: 0.7 },
   };
 }

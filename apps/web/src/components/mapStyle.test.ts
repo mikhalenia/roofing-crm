@@ -18,14 +18,14 @@ describe("markerStyle", () => {
     const s = markerStyle(signals, false);
     expect(s.radius).toBe(radius);
     expect(s.pathOptions).toMatchObject({ fillColor: fill, color: stroke, weight: 1.5, fillOpacity: 0.7 });
-    expect(s.pathOptions.className).toBe(`result-marker result-marker--${kind}`);
+    expect(s.className).toBe(`result-marker result-marker--${kind}`);
+    expect(s.pathOptions.className).toBeUndefined();
   });
 
   it("focused markers are larger with a saturated fill and a dark stroke", () => {
     const s = markerStyle(set("aged_roof"), true);
     expect(s.radius).toBe(9);
     expect(s.pathOptions).toMatchObject({ fillColor: "#D1495B", color: "#1f2933", weight: 2 });
-    expect(s.pathOptions.className).toContain("result-marker--focused");
     expect(markerStyle(set("open_permit"), true).pathOptions.fillColor).toBe("#E9A23B");
     expect(markerStyle(set("stalled_permit"), true).pathOptions.fillColor).toBe("#4F6D7A");
   });

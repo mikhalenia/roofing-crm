@@ -22,16 +22,20 @@ export function roofAgeText(l: PipelineLead): string {
   return `Roof ${l.roofAgeYears} yrs${basis ? ` (based on ${basis})` : ""}`;
 }
 
-/** One-line hover summary: address, roof age, permit state, days open. */
-export function hoverText(l: PipelineLead): string {
-  return [
-    l.situsAddress ?? l.apn,
-    l.roofAgeYears != null ? `roof ${l.roofAgeYears} yrs` : "roof age unknown",
-    permitStateLabel(l.permitState),
-    l.daysOpen != null ? `${l.daysOpen} days open` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+const SHORT_STATE: Record<string, string> = { open: "Open", expired_unfinaled: "Stalled", finaled: "Finaled" };
+
+/** 7842 -> "7,842". */
+export const formatCount = (n: number) => n.toLocaleString("en-US");
+
+/** Three short lines for the marker hover card: address, roof age, permit state and days open. */
+export function hoverLines(l: PipelineLead): [string, string, string] {
+  const roof =
+    l.roofAgeYears != null
+      ? `Roof ${l.roofAgeYears} yrs${l.roofAgeConfidence ? ` (${l.roofAgeConfidence} confidence)` : ""}`
+      : "Roof age unknown";
+  const state = l.permitState ? (SHORT_STATE[l.permitState] ?? l.permitState) : "No permit";
+  const permit = l.daysOpen != null ? `${state} · ${formatCount(l.daysOpen)} days open` : state;
+  return [l.situsAddress ?? l.apn, roof, permit];
 }
 
 /** "Oct 7, 2026" from an ISO timestamp or a run id like "2026-10-07T17-10-54Z"; null when unparseable. */

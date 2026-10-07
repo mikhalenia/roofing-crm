@@ -16,7 +16,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
-import { friendlyDate, permitStateLabel, roofBasisLabel } from "../state/labels";
+import { formatCount, friendlyDate, permitStateLabel, roofBasisLabel } from "../state/labels";
 import { CidLine, TechnicalDetails } from "./TechnicalDetails";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { useLeadSave } from "./useLeadSave";
@@ -201,7 +201,7 @@ export function PropertyDrawer({
                     pm.permitState ? permitStateLabel(pm.permitState) : "state unknown",
                     pm.issueDate && `issued ${pm.issueDate}`,
                     pm.finalDate && `final ${pm.finalDate}`,
-                    pm.daysOpen != null && `${pm.daysOpen} days open`,
+                    pm.daysOpen != null && `${formatCount(pm.daysOpen)} days open`,
                     pm.workDescription,
                   ]
                     .filter(Boolean)

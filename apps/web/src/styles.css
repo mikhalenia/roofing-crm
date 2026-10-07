@@ -9,3 +9,15 @@
   box-sizing: border-box;
   cursor: grab;
 }
+
+/* Marker hover card: compact, multi-line, never wider than the map. */
+.leaflet-tooltip.result-tooltip {
+  max-width: 240px;
+  white-space: normal;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 8px rgba(31, 41, 51, 0.18);
+  font: 12px/1.4 "Roboto", "Helvetica", "Arial", sans-serif;
+  color: #1f2933;
+}
