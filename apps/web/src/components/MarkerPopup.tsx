@@ -20,13 +20,13 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
   return (
     <Box sx={{ minWidth: 240, maxWidth: 300 }} role="dialog" aria-label={`Property ${l.situsAddress ?? l.apn}`}>
       <Typography variant="subtitle2" component="h3">{l.situsAddress ?? l.apn}</Typography>
-      <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
+      <Typography component="div" variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
         {l.situsCity ?? "City unknown"}, APN {l.apn}
       </Typography>
-      <Typography variant="body2">{roofAgeText(l)}</Typography>
-      <Typography variant="body2">{permit}</Typography>
-      <Typography variant="body2">Contractor: {l.contractorCompany ?? "unknown"}</Typography>
-      <Typography variant="body2">Owner: {l.ownerName ?? "unknown"}</Typography>
+      <Typography component="div" variant="body2">{roofAgeText(l)}</Typography>
+      <Typography component="div" variant="body2">{permit}</Typography>
+      <Typography component="div" variant="body2">Contractor: {l.contractorCompany ?? "unknown"}</Typography>
+      <Typography component="div" variant="body2">Owner: {l.ownerName ?? "unknown"}</Typography>
       <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
         <Button size="small" variant="outlined" onClick={() => onDetails(l.apn)}>Details</Button>
         <Button

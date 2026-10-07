@@ -14,6 +14,8 @@ const h = vi.hoisted(() => ({
     getZoom: () => 11,
     setView: vi.fn(),
     flyTo: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
   },
 }));
 
@@ -62,7 +64,6 @@ const markerFor = (apn: string) =>
 const props = {
   pin: { lat: 37.3, lon: -121.9 },
   radiusMiles: 5,
-  minRoofAgeYears: 15,
   rows,
   onPin: vi.fn(),
   onSelect: vi.fn(),

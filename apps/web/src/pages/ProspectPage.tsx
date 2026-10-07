@@ -1,8 +1,10 @@
-import { useCallback, useState } from "react";
-import { Box, Button, Drawer, LinearProgress, Paper, Stack, useMediaQuery, useTheme } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
+import { Box, Drawer, Paper, useMediaQuery, useTheme } from "@mui/material";
 import { useAgent } from "../state/AgentContext";
 import { useSearch } from "../state/SearchContext";
 import { AgentPanel } from "../components/AgentPanel";
+import { MapCard } from "../components/MapCard";
+import { hasBothSignals } from "../components/mapStyle";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
@@ -19,6 +21,8 @@ export function ProspectPage() {
   const wide = useMediaQuery(theme.breakpoints.up("md"));
   const [selected, setSelected] = useState<string | null>(null);
   const search = useProspectSearch();
+  const [inView, setInView] = useState(0);
+  const matching = useMemo(() => state.results.filter((r) => hasBothSignals(r.signals)).length, [state.results]);
 
   const hover = useCallback((apn: string | null) => dispatch({ type: "hover", apn }), [dispatch]);
   const onPin = useCallback((pin: { lat: number; lon: number }) => dispatch({ type: "setPin", pin }), [dispatch]);
@@ -37,23 +41,20 @@ export function ProspectPage() {
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <SnapshotBanner snapshot={state.snapshot} healthError={state.healthError} searchError={state.error} />
-        <Stack sx={{ flexDirection: "row", justifyContent: "flex-end", mb: 1 }}>
-          <Button
-            variant={agent.open ? "contained" : "outlined"}
-            aria-pressed={agent.open}
-            onClick={() => setOpen(!agent.open)}
-          >
-            Agent
-          </Button>
-        </Stack>
-        <Box sx={{ height: 4, mb: 0.5 }}>
-          {state.loading && <LinearProgress aria-label="Searching" />}
-        </Box>
-        <Box sx={{ height: 420, mb: 2 }}>
+        <MapCard
+          radiusMiles={state.radiusMiles}
+          pin={state.pin}
+          total={state.results.length}
+          capped={state.capped}
+          matching={matching}
+          inView={inView}
+          loading={state.loading}
+          agentOpen={agent.open}
+          onToggleAgent={() => setOpen(!agent.open)}
+        >
           <MapView
             pin={state.pin}
             radiusMiles={state.radiusMiles}
-            minRoofAgeYears={state.filters.minRoofAgeYears}
             rows={state.results}
             onPin={onPin}
             onSelect={setSelected}
@@ -65,8 +66,9 @@ export function ProspectPage() {
               if (!found && focus) setSelected(focus.apn);
               dispatch({ type: "focusDone" });
             }}
+            onViewCount={setInView}
           />
-        </Box>
+        </MapCard>
         <Box sx={{ overflowX: "auto" }}>
           <ResultsTable
             rows={state.results}

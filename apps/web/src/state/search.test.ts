@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
-import { initialState, markerColor, searchKey, searchReducer, toSearchParams, type Signal } from "./search";
+import { initialState, searchKey, searchReducer, toSearchParams } from "./search";
 
 const provenance = {
   propertySourceUrl: "u",
@@ -130,24 +130,6 @@ describe("toSearchParams", () => {
       roofingOnly: false,
       limit: 200,
     });
-  });
-});
-
-describe("markerColor", () => {
-  const mk = (signals: Signal[], roofAgeYears?: number) => ({
-    lead: lead("X", { roofAgeYears }),
-    signals: new Set<Signal>(signals),
-  });
-  it("red wins over orange when aged roof meets threshold", () => {
-    expect(markerColor(mk(["aged_roof", "open_permit"], 20), 15)).toBe("#d32f2f");
-  });
-  it("orange for open permit, grey for stalled, blue otherwise", () => {
-    expect(markerColor(mk(["open_permit"]), 15)).toBe("#ed6c02");
-    expect(markerColor(mk(["stalled_permit"]), 15)).toBe("#757575");
-    expect(markerColor(mk(["aged_roof"], 10), 15)).toBe("#1976d2");
-  });
-  it("orange beats grey when both signals exist", () => {
-    expect(markerColor(mk(["stalled_permit", "open_permit"]), 15)).toBe("#ed6c02");
   });
 });
 

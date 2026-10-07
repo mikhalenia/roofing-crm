@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PipelineLead } from "@crm/contracts";
 import { divIcon, type LeafletEventHandlerFnMap, type Marker as LeafletMarker } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import { markerColor, type Focus, type ResultRow } from "../state/search";
+import type { Focus, ResultRow } from "../state/search";
 import { hoverText } from "../state/labels";
+import { DENSE_MARKERS, PIN_COLOR, markerStyle } from "./mapStyle";
 import { MarkerPopup } from "./MarkerPopup";
 
 const MILES_TO_METERS = 1609.344;
@@ -11,7 +12,6 @@ const MILES_TO_METERS = 1609.344;
 interface Props {
   pin: { lat: number; lon: number };
   radiusMiles: number;
-  minRoofAgeYears: number;
   rows: ResultRow[];
   onPin: (pin: { lat: number; lon: number }) => void;
   /** Opens the property drawer. */
@@ -25,6 +25,8 @@ interface Props {
   /** The result hovered here or in the table. */
   hoverApn?: string | null;
   onHover?: (apn: string | null) => void;
+  /** Number of result markers inside the visible map bounds (after moves, zooms and new results). */
+  onViewCount?: (count: number) => void;
 }
 
 /** The search center: a dark dot with a white ring, draggable to move the search. */
@@ -84,6 +86,22 @@ function FocusOn({
   return null;
 }
 
+function TrackView({ rows, onCount }: { rows: ResultRow[]; onCount: (n: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const count = () => {
+      const b = map.getBounds();
+      onCount(rows.filter((r) => b.contains([r.lead.lat, r.lead.lon])).length);
+    };
+    count();
+    map.on("moveend", count);
+    return () => {
+      map.off("moveend", count);
+    };
+  }, [map, rows, onCount]);
+  return null;
+}
+
 interface OpenPopup {
   apn: string;
   /** False when opened by a focus: flyTo already centers it and autoPan would cut the flight short. */
@@ -108,9 +126,18 @@ function ResultPopup({
 }
 
 export function MapView(props: Props) {
-  const { pin, radiusMiles, minRoofAgeYears, rows, onPin, onSelect, onAsk, focus = null, onFocusDone } = props;
-  const { hoverApn = null, onHover } = props;
+  const { pin, radiusMiles, rows, onPin, onSelect, onAsk, focus = null, onFocusDone } = props;
+  const { hoverApn = null, onHover, onViewCount } = props;
   const [popup, setPopup] = useState<OpenPopup | null>(null);
+  const [inView, setInView] = useState(rows.length);
+  const countInView = useCallback(
+    (n: number) => {
+      setInView(n);
+      onViewCount?.(n);
+    },
+    [onViewCount],
+  );
+  const dense = inView > DENSE_MARKERS;
   const popupRow = popup ? rows.find((r) => r.lead.apn === popup.apn) : undefined;
   return (
     <MapContainer
@@ -130,17 +157,31 @@ export function MapView(props: Props) {
         onOpen={(apn) => setPopup({ apn, autoPan: false })}
         onDone={(found) => onFocusDone?.(found)}
       />
-      <Circle center={[pin.lat, pin.lon]} radius={radiusMiles * MILES_TO_METERS} pathOptions={{ color: "#1565c0", fillOpacity: 0.05 }} />
+      <TrackView rows={rows} onCount={countInView} />
+      <Circle
+        center={[pin.lat, pin.lon]}
+        radius={radiusMiles * MILES_TO_METERS}
+        interactive={false}
+        pathOptions={{ className: "search-radius", color: PIN_COLOR, weight: 2, fillColor: PIN_COLOR, fillOpacity: 0.05 }}
+      />
+      {popupRow && (
+        <CircleMarker
+          center={[popupRow.lead.lat, popupRow.lead.lon]}
+          radius={16}
+          interactive={false}
+          pathOptions={{ className: "result-halo", stroke: false, fillColor: PIN_COLOR, fillOpacity: 0.18 }}
+        />
+      )}
       {rows.map((row) => {
-        const color = markerColor(row, minRoofAgeYears);
-        const hovered = row.lead.apn === hoverApn;
+        const focused = row.lead.apn === hoverApn || row.lead.apn === popup?.apn;
+        const style = markerStyle(row.signals, focused, dense);
         return (
           <CircleMarker
             key={row.lead.apn}
             center={[row.lead.lat, row.lead.lon]}
-            radius={hovered ? 10 : 7}
+            radius={style.radius}
             bubblingMouseEvents={false}
-            pathOptions={{ color: hovered ? "#212121" : color, fillColor: color, fillOpacity: 0.8 }}
+            pathOptions={style.pathOptions}
             eventHandlers={{
               click: () => setPopup({ apn: row.lead.apn, autoPan: true }),
               mouseover: () => onHover?.(row.lead.apn),

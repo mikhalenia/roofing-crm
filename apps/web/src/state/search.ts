@@ -187,11 +187,3 @@ export function toSearchParams(state: SearchState): SearchParamsOutput {
 export function searchKey(state: SearchState): string {
   return JSON.stringify(toSearchParams(state));
 }
-
-export function markerColor(row: ResultRow, minRoofAgeYears: number): string {
-  const { lead, signals } = row;
-  if ((lead.roofAgeYears ?? 0) >= minRoofAgeYears && signals.has("aged_roof")) return "#d32f2f";
-  if (signals.has("open_permit")) return "#ed6c02";
-  if (signals.has("stalled_permit")) return "#757575";
-  return "#1976d2";
-}
