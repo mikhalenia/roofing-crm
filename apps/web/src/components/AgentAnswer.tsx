@@ -76,7 +76,12 @@ export function AgentAnswer({ result, targetApn, onSource, onApply }: Props) {
           disabled={result.resolvedFilters == null}
           onClick={onApply}
         >
-          {summary && result.resolvedFilters ? `Show all ${formatCount(summary.matching)} on map` : "Apply to map"}
+          {/* When capped, the count is the fetch limit, not "all". */}
+          {!summary || !result.resolvedFilters
+            ? "Apply to map"
+            : summary.capped
+              ? "Show these results on map"
+              : `Show all ${formatCount(summary.matching)} on map`}
         </Button>
       </Box>
       <Box data-testid="agent-tool-calls">

@@ -46,9 +46,14 @@ describe("AgentAnswer", () => {
     expect(props.onSource).toHaveBeenCalledWith("47223002");
   });
 
-  it("offers Show all on map and humanized, collapsed tool calls", () => {
+  it("says Show all N only when the count is not capped", () => {
+    setup({ toolCalls: [{ name: "find_aged_roofs", args: {}, resultCount: 37, capped: false, shown: 25 }] });
+    expect(screen.getByRole("button", { name: "Show all 37 on map" })).toBeInTheDocument();
+  });
+
+  it("offers Show these results on map and humanized, collapsed tool calls", () => {
     const props = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Show all 200 on map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show these results on map" }));
     expect(props.onApply).toHaveBeenCalled();
     const toggle = screen.getByRole("button", { name: /How this was answered · 2 tool calls/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
