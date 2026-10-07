@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
-import { hoverText, permitStateLabel, roofAgeText } from "./labels";
+import { friendlyDate, hoverText, permitStateLabel, roofAgeText } from "./labels";
 
 const lead = (over: Partial<PipelineLead> = {}) =>
   ({ apn: "A1", situsAddress: "1 Main St", lat: 37.3, lon: -121.9, bbbRating: null, distanceMiles: 1,
@@ -24,5 +24,12 @@ describe("labels", () => {
       "1 Main St · roof 22 yrs · Open · 300 days open",
     );
     expect(hoverText(lead({ situsAddress: null }))).toBe("A1 · roof age unknown · No permit");
+  });
+  it("formats dates for people", () => {
+    expect(friendlyDate("2026-10-07T00:00:00Z")).toBe("Oct 7, 2026");
+    expect(friendlyDate("2026-10-07T17-10-54Z")).toBe("Oct 7, 2026");
+    expect(friendlyDate("2026-10-07 17:10:54.93")).toBe("Oct 7, 2026");
+    expect(friendlyDate("run-1")).toBeNull();
+    expect(friendlyDate(null)).toBeNull();
   });
 });

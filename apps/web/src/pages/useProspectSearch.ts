@@ -11,20 +11,13 @@ const message = (e: unknown) =>
   e instanceof PipelineError || e instanceof Error ? e.message : "Unknown error";
 
 /**
- * Loads the snapshot banner, searches automatically (debounced) whenever the pin, radius or
+ * Searches automatically (debounced) whenever the pin, radius or
  * filters differ from the last search, and returns the search action for "Refresh".
  * Stale responses are ignored.
  */
 export function useProspectSearch(): () => void {
   const { state, dispatch } = useSearch();
   const requestId = useRef(0);
-
-  useEffect(() => {
-    fetchHealth().then(
-      (h) => dispatch({ type: "healthLoaded", snapshot: h.snapshot }),
-      (e: unknown) => dispatch({ type: "healthFailed", error: message(e) }),
-    );
-  }, [dispatch]);
 
   const search = useCallback(() => {
     const parsed = SearchParams.safeParse(toSearchParams(state));
@@ -65,4 +58,15 @@ export function useProspectSearch(): () => void {
   }, [key, state.lastSearchKey]);
 
   return search;
+}
+
+/** Loads the data snapshot status once for the app shell. */
+export function useHealth(): void {
+  const { dispatch } = useSearch();
+  useEffect(() => {
+    fetchHealth().then(
+      (h) => dispatch({ type: "healthLoaded", snapshot: h.snapshot }),
+      (e: unknown) => dispatch({ type: "healthFailed", error: message(e) }),
+    );
+  }, [dispatch]);
 }

@@ -16,7 +16,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
-import { permitStateLabel, roofBasisLabel } from "../state/labels";
+import { friendlyDate, permitStateLabel, roofBasisLabel } from "../state/labels";
+import { CidLine, TechnicalDetails } from "./TechnicalDetails";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { useLeadSave } from "./useLeadSave";
 
@@ -230,32 +231,43 @@ export function PropertyDrawer({
             </Section>
             <Divider sx={{ mb: 1 }} />
             <Section title="Provenance">
-              <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
-                <ProvenanceChip label="Property source" url={p.sourceUrl} version={p.sourceVersion} fetchedAt={p.fetchedAt} />
-                {detail.permits.map((pm) => (
-                  <ProvenanceChip key={pm.permitNumber} label={`Permit ${pm.permitNumber}`} url={pm.sourceUrl} version={pm.sourceVersion} fetchedAt={pm.fetchedAt} />
-                ))}
-              </Stack>
-              <Typography variant="caption" component="div" sx={{ mt: 1 }}>
-                Source:{" "}
-                {p.sourceUrl ? (
-                  <Link
-                    href={p.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={p.sourceUrl}
-                    sx={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}
-                  >
-                    {p.sourceUrl}
-                  </Link>
-                ) : (
-                  "-"
-                )}
+              <Typography variant="body2">
+                {[
+                  "Source: County of Santa Clara (parcels)",
+                  detail.permits[0] && `City of San José (permit ${detail.permits[0].permitNumber})`,
+                  friendlyDate(p.fetchedAt) && `fetched ${friendlyDate(p.fetchedAt)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Typography>
-              <Typography variant="caption" component="div">
-                Version {dash(p.sourceVersion)} · fetched {dash(p.fetchedAt)} · manifest CID{" "}
-                {dash(detail.snapshot.manifestCid)}
-              </Typography>
+              <TechnicalDetails>
+                <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
+                  <ProvenanceChip label="Property source" url={p.sourceUrl} version={p.sourceVersion} fetchedAt={p.fetchedAt} />
+                  {detail.permits.map((pm) => (
+                    <ProvenanceChip key={pm.permitNumber} label={`Permit ${pm.permitNumber}`} url={pm.sourceUrl} version={pm.sourceVersion} fetchedAt={pm.fetchedAt} />
+                  ))}
+                </Stack>
+                <Typography variant="caption" component="div">
+                  Source URL:{" "}
+                  {p.sourceUrl ? (
+                    <Link
+                      href={p.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={p.sourceUrl}
+                      sx={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}
+                    >
+                      {p.sourceUrl}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </Typography>
+                <Typography variant="caption" component="div">
+                  Version {dash(p.sourceVersion)} · fetched {dash(p.fetchedAt)}
+                </Typography>
+                <CidLine cid={detail.snapshot.manifestCid} />
+              </TechnicalDetails>
             </Section>
           </>
         )}

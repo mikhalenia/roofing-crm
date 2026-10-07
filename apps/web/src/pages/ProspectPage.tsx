@@ -43,7 +43,7 @@ export function ProspectPage() {
         />
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <SnapshotBanner snapshot={state.snapshot} healthError={state.healthError} searchError={state.error} />
+        <SnapshotBanner searchError={state.error} />
         <MapCard
           radiusMiles={state.radiusMiles}
           pin={state.pin}

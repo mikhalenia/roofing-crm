@@ -43,7 +43,11 @@ describe("PropertyDrawer", () => {
     expect(screen.getByText(/based on the final inspection date, high confidence, permit BLD-0/)).toBeInTheDocument();
     expect(screen.getByText(/Acme Roofing · CSLB 123456 \(active\) · BBB: not available \(no public source\)/)).toBeInTheDocument();
     expect(screen.getByText(/Jane Doe · observed 2025-02-01/)).toBeInTheDocument();
-    expect(screen.getByText(/manifest CID bafyMANIFEST/)).toBeInTheDocument();
+    expect(screen.getByText("Source: County of Santa Clara (parcels) · City of San José (permit BLD-1) · fetched Oct 1, 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/Manifest CID bafyMANIFEST/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
+    expect(screen.getByText(/Manifest CID bafyMANIFEST/)).toBeInTheDocument();
+    expect(screen.getByText(/A CID is a fingerprint of the published data/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save as lead" })).toBeEnabled();
   });
 
@@ -124,6 +128,7 @@ describe("PropertyDrawer", () => {
     expect(screen.getByText(/based on the completed-approval issue date, medium confidence/)).toBeInTheDocument();
     expect(screen.queryByText(/approval_complete_issue_date/)).toBeNull();
     expect(screen.getByText(/Bob Roofing · CSLB license: not matched · BBB: not available \(no public source\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
     const link = screen.getByRole("link", { name: "https://src.test/p" });
     expect(link).toHaveAttribute("title", "https://src.test/p");
     expect(link).toHaveStyle({ textOverflow: "ellipsis" });

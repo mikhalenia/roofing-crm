@@ -14,7 +14,9 @@ import { AgentPage } from "./pages/AgentPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { ProspectPage } from "./pages/ProspectPage";
 import { AgentProvider } from "./state/AgentContext";
-import { SearchProvider } from "./state/SearchContext";
+import { SearchProvider, useSearch } from "./state/SearchContext";
+import { DataStatus } from "./components/DataStatus";
+import { useHealth } from "./pages/useProspectSearch";
 
 const NAV_WIDTH = 220;
 const NAV = [
@@ -25,11 +27,14 @@ const NAV = [
 
 function Shell() {
   const { pathname } = useLocation();
+  const { state } = useSearch();
+  useHealth();
   return (
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar>
-          <Typography variant="h6" component="h1">Roofing CRM</Typography>
+          <Typography variant="h6" component="h1" sx={{ flex: 1 }}>Roofing CRM</Typography>
+          <DataStatus snapshot={state.snapshot} error={state.healthError} />
         </Toolbar>
       </AppBar>
       <Drawer

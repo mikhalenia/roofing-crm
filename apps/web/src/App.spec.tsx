@@ -41,6 +41,6 @@ describe("App", () => {
     expect(screen.getByText("Prospect")).toBeInTheDocument();
     const campaigns = screen.getByText("Campaigns").closest("[aria-disabled='true']");
     expect(campaigns).not.toBeNull();
-    expect(await screen.findByText(/health check failed/i)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Data unavailable" })).toBeInTheDocument();
   });
 });

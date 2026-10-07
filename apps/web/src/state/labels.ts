@@ -33,3 +33,12 @@ export function hoverText(l: PipelineLead): string {
     .filter(Boolean)
     .join(" · ");
 }
+
+/** "Oct 7, 2026" from an ISO timestamp or a run id like "2026-10-07T17-10-54Z"; null when unparseable. */
+export function friendlyDate(value: string | null | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? "");
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
