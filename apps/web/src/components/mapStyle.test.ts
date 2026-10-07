@@ -43,6 +43,8 @@ describe("tooltipPlacement", () => {
     expect(tooltipPlacement({ x: 8, y: 200 }, size)).toEqual({ direction: "right", offset: [8, 0] });
     expect(tooltipPlacement({ x: 672, y: 200 }, size)).toEqual({ direction: "left", offset: [-8, 0] });
     expect(tooltipPlacement({ x: 340, y: 200 }, size)).toEqual({ direction: "top", offset: [0, -6] });
-    expect(tooltipPlacement({ x: 8, y: 8 }, size).direction).toBe("right");
+    expect(tooltipPlacement({ x: 8, y: 8 }, size)).toEqual({ direction: "right", offset: [8, 34] });
+    // Near the bottom edge a side card moves up so it is not cut off.
+    expect(tooltipPlacement({ x: 672, y: 398 }, size)).toEqual({ direction: "left", offset: [-8, -20] });
   });
 });
