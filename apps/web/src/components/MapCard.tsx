@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from "@mui/material";
+import { formatCount } from "../labels";
 import { DENSE_MARKERS } from "./mapStyle";
 import { MapLegend } from "./MapLegend";
 
@@ -10,8 +11,6 @@ interface Props {
   total: number;
   /** A search hit the fetch limit, so `total` is a lower bound. */
   capped: boolean;
-  /** Properties with an aged roof and a permit in the selected state. */
-  matching: number;
   /** Result markers inside the visible map bounds. */
   inView: number;
   loading: boolean;
@@ -20,9 +19,11 @@ interface Props {
   children: ReactNode;
 }
 
-export function statusCaption({ total, capped, matching, inView }: Pick<Props, "total" | "capped" | "matching" | "inView">): string {
-  const shown = `Showing ${capped ? "at least " : ""}${total} ${total === 1 ? "property" : "properties"} in this radius · ${matching} match the current filters`;
-  return inView > DENSE_MARKERS ? `${shown} · ${inView} markers — zoom in for detail` : shown;
+export function statusCaption({ total, capped, inView }: Pick<Props, "total" | "capped" | "inView">): string {
+  const shown = capped
+    ? `Showing ${formatCount(total)} of at least ${formatCount(total)} matches`
+    : `${formatCount(total)} matching ${total === 1 ? "property" : "properties"} in this radius (showing all)`;
+  return inView > DENSE_MARKERS ? `${shown} · ${formatCount(inView)} markers in view, zoom in for detail` : shown;
 }
 
 /** The map framed as a card: title, radius chip, agent toggle, legend and a status caption. */
@@ -52,9 +53,11 @@ export function MapCard(props: Props) {
       <Box sx={{ height: 4 }}>{loading && <LinearProgress aria-label="Searching" />}</Box>
       <Box sx={{ position: "relative", height: 420, borderRadius: 1.5, overflow: "hidden" }}>
         {children}
+      </Box>
+      <Box sx={{ mt: 1 }}>
         <MapLegend />
       </Box>
-      <Typography variant="body2" sx={{ mt: 1 }} data-testid="map-status">
+      <Typography variant="body2" sx={{ mt: 0.75 }} data-testid="map-status">
         {statusCaption(props)}
       </Typography>
       <Typography variant="caption" sx={{ color: "text.secondary" }}>

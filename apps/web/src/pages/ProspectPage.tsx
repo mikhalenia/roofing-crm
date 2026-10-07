@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Box, Drawer, Paper, useMediaQuery, useTheme } from "@mui/material";
 import { useAgent } from "../state/AgentContext";
 import { useSearch } from "../state/SearchContext";
 import { AgentPanel } from "../components/AgentPanel";
 import { MapCard } from "../components/MapCard";
-import { hasBothSignals } from "../components/mapStyle";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
@@ -25,7 +24,6 @@ export function ProspectPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const search = useProspectSearch();
   const [inView, setInView] = useState(0);
-  const matching = useMemo(() => state.results.filter((r) => hasBothSignals(r.signals)).length, [state.results]);
 
   const hover = useCallback((apn: string | null) => dispatch({ type: "hover", apn }), [dispatch]);
   const onPin = useCallback((pin: { lat: number; lon: number }) => dispatch({ type: "setPin", pin }), [dispatch]);
@@ -49,7 +47,6 @@ export function ProspectPage() {
           pin={state.pin}
           total={state.results.length}
           capped={state.capped}
-          matching={matching}
           inView={inView}
           loading={state.loading}
           agentOpen={agent.open}
