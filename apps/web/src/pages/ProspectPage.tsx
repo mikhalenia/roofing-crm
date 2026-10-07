@@ -19,6 +19,9 @@ export function ProspectPage() {
   const { agent, setOpen, askAbout } = useAgent();
   const theme = useTheme();
   const wide = useMediaQuery(theme.breakpoints.up("md"));
+  // Below xl the map would be too narrow with three columns, so the filters step aside while the agent is open.
+  const roomy = useMediaQuery(theme.breakpoints.up("xl"));
+  const showControls = !(wide && agent.open && !roomy);
   const [selected, setSelected] = useState<string | null>(null);
   const search = useProspectSearch();
   const [inView, setInView] = useState(0);
@@ -30,7 +33,7 @@ export function ProspectPage() {
   const focus = state.focus;
   return (
     <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}>
-      <Paper sx={{ width: { md: 300 }, flexShrink: 0 }}>
+      <Paper sx={{ width: { md: 300 }, flexShrink: 0, display: showControls ? undefined : "none" }}>
         <SearchControls
           state={state}
           onRadius={(radiusMiles) => dispatch({ type: "setRadius", radiusMiles })}

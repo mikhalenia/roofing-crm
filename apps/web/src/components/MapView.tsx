@@ -86,6 +86,18 @@ function FocusOn({
   return null;
 }
 
+/** Leaflet does not notice container resizes (e.g. the agent panel opening); re-measure on resize. */
+function FitContainer() {
+  const map = useMap();
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined" || typeof map.getContainer !== "function") return;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 function TrackView({ rows, onCount }: { rows: ResultRow[]; onCount: (n: number) => void }) {
   const map = useMap();
   useEffect(() => {
@@ -157,6 +169,7 @@ export function MapView(props: Props) {
         onOpen={(apn) => setPopup({ apn, autoPan: false })}
         onDone={(found) => onFocusDone?.(found)}
       />
+      <FitContainer />
       <TrackView rows={rows} onCount={countInView} />
       <Circle
         center={[pin.lat, pin.lon]}
