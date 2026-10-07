@@ -61,9 +61,12 @@ export function getAgentDeps(): AgentDeps {
 }
 
 function contextLine(req: AgentRequest): string {
-  return req.context
-    ? `\nCurrent map context: lat ${req.context.lat}, lon ${req.context.lon}, radius ${req.context.radiusMiles} miles. If the question names a place, geocode it instead.`
-    : "\nNo map context; call geocode_place when the question names a place.";
+  const c = req.context;
+  if (!c) return "\nNo map context; call geocode_place when the question names a place.";
+  const map = `\nCurrent map context: lat ${c.lat}, lon ${c.lon}, radius ${c.radiusMiles} miles. If the question names a place, geocode it instead.`;
+  if (!c.apn) return map;
+  const address = c.address ? `, address ${c.address}` : "";
+  return `${map}\nSelected property: APN ${c.apn}${address}. The user picked it on the map: call get_property for APN ${c.apn} first and answer about it (roof age, permits, contractor, lead quality).`;
 }
 
 /**

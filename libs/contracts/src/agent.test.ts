@@ -13,6 +13,18 @@ describe('AgentRequest', () => {
       }).success,
     ).toBe(true);
   });
+  it('accepts an optional selected property in the context', () => {
+    const r = AgentRequest.safeParse({
+      question: 'abc',
+      context: { lat: 37.3, lon: -121.9, radiusMiles: 5, apn: '264-12-034', address: '1 Main St' },
+    });
+    expect(r.success && r.data.context).toMatchObject({ apn: '264-12-034', address: '1 Main St' });
+  });
+  it('rejects an empty apn', () => {
+    expect(
+      AgentRequest.safeParse({ question: 'abc', context: { lat: 1, lon: 2, radiusMiles: 5, apn: '' } }).success,
+    ).toBe(false);
+  });
   it('rejects >500 chars', () => {
     expect(AgentRequest.safeParse({ question: 'a'.repeat(501), context: null }).success).toBe(false);
   });

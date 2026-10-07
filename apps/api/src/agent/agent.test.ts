@@ -245,6 +245,31 @@ describe("runAgent", () => {
     expect(gen.seen[0]!.system).toContain("lat 37.3, lon -121.9, radius 2 miles");
   });
 
+  it("adds the selected property to the system prompt and asks for get_property first", async () => {
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
+    await runAgent(
+      env,
+      {
+        question: "Tell me about 1 Main St",
+        context: { lat: 37.3, lon: -121.9, radiusMiles: 2, apn: "264-12-034", address: "1 Main St" },
+      },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    const system = gen.seen[0]!.system;
+    expect(system).toContain("Selected property: APN 264-12-034, address 1 Main St.");
+    expect(system).toMatch(/call get_property for APN 264-12-034 first/);
+  });
+
+  it("omits the selected-property line without an apn", async () => {
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
+    await runAgent(
+      env,
+      { question: "Old roofs here?", context: { lat: 37.3, lon: -121.9, radiusMiles: 2 } },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(gen.seen[0]!.system).not.toContain("Selected property");
+  });
+
   it("tells the model to geocode a named place even with map context, and to word capped counts", async () => {
     const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
     await runAgent(

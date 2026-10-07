@@ -4,7 +4,14 @@ import { PartialSearchParams } from './search';
 export const AgentRequest = z.object({
   question: z.string().min(3).max(500),
   context: z
-    .object({ lat: z.number(), lon: z.number(), radiusMiles: z.number() })
+    .object({
+      lat: z.number(),
+      lon: z.number(),
+      radiusMiles: z.number(),
+      // The property picked on the map ("Ask agent"); the agent looks it up first.
+      apn: z.string().min(1).max(40).optional(),
+      address: z.string().max(200).optional(),
+    })
     .nullable(),
 });
 export type AgentRequest = z.infer<typeof AgentRequest>;
