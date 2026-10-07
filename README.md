@@ -47,4 +47,61 @@ The UI should present property and permit details, including contractor informat
 
 ## Candidate implementation
 
-See `docs/superpowers/specs/2026-10-07-roofing-crm-design.md` for the design and `CLAUDE.md` for the agent guide.
+### Live
+
+- Web (Cloudflare Pages): https://roofing-crm.pages.dev
+- CRM API (Cloudflare Worker): https://roofing-crm-api.mikhalenia-a.workers.dev
+- Pipeline API consumed for all property and permit data: https://scc-pipeline-api.mikhalenia-a.workers.dev. The UI shows the snapshot run and manifest CID of the data it is reading (Prospect page banner and property drawer).
+
+### What was built
+
+A map-based CRM for Santa Clara County. A user drops a pin or uses GPS, sets a radius and a roof-age threshold, and sees matching properties and open or expired-unfinaled roofing permits on a Leaflet map and in a sortable table. A property drawer shows permit details, contractor and BBB score where present, and data provenance. Properties can be saved as leads (status, notes, edit, delete) and the Leads page filters by status, roof age, permit state, open years and radius. A natural-language agent answers roofing-opportunity questions using tools that call the pipeline API, and cites its sources. Future CRM sections are shown as disabled navigation. No data is ingested or stored here beyond lead records.
+
+### Architecture
+
+- `apps/web`: React + MUI + Leaflet single-page app on Cloudflare Pages.
+- `apps/api`: Hono Worker on Cloudflare Workers. Leads are stored in D1. The agent uses the Vercel AI SDK with Workers AI and Zod-typed tools that call the pipeline API.
+- `libs/contracts`: Zod schemas and types shared by web and api.
+- nx monorepo with pnpm; `apps/web-e2e` holds the Playwright demo-transcript test.
+
+### Run locally
+
+```sh
+nvm use                      # Node 22
+pnpm install
+cp apps/web/.env.example apps/web/.env   # VITE_PIPELINE_API, VITE_CRM_API, VITE_USE_STUB
+pnpm nx serve web            # http://localhost:4200
+cd apps/api && pnpm exec wrangler dev   # CRM API on http://localhost:8787
+pnpm check                   # lint + typecheck + test + build for all projects
+```
+
+Set `VITE_USE_STUB=true` to serve canned pipeline data without network access. The agent needs the Workers AI binding, so `wrangler dev` talks to Cloudflare for it. The e2e test runs against a deployed or locally previewed web app:
+
+```sh
+E2E_BASE_URL=https://roofing-crm.pages.dev pnpm nx e2e web-e2e
+```
+
+Without `E2E_BASE_URL` it starts `nx run web:preview` on port 4300.
+
+### Deploy
+
+```sh
+pnpm nx migrate api          # wrangler d1 migrations apply roofing-crm --remote
+pnpm nx deploy api           # wrangler deploy (apps/api)
+pnpm nx build web            # set VITE_PIPELINE_API and VITE_CRM_API in the environment
+pnpm exec wrangler pages deploy dist/apps/web --project-name roofing-crm
+```
+
+The Worker allows CORS from `ALLOWED_ORIGIN` (`https://roofing-crm.pages.dev`) plus `http://localhost:4200` and `http://localhost:4300`.
+
+### Documents
+
+- [Limitations](docs/limitations.md)
+- [Acceptance criteria traceability](docs/acceptance-criteria.md)
+- [Demo script](docs/demo-script.md)
+- [PR description](docs/pr-description.md)
+- [Design spec](docs/superpowers/specs/2026-10-07-roofing-crm-design.md) and [agent guide](CLAUDE.md)
+
+### Deviation from the Golden Path
+
+The Golden Path assumes AWS and CDK. This implementation uses Cloudflare (Pages, Workers, D1, Workers AI) instead, because the sibling pipeline API is already a Cloudflare Worker. The Vercel AI SDK is used for the agent, as required.
