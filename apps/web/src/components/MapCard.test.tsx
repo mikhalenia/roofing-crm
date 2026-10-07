@@ -21,7 +21,7 @@ describe("MapCard", () => {
 
   it("words capped and dense views", () => {
     expect(statusCaption({ total: 395, capped: true, inView: 120 })).toBe(
-      "395 properties shown · the 200-record search limit was reached, so more match in this radius (zoom in or tighten the filters)",
+      "395 properties shown · each search returns at most 200 records per signal, so more match in this radius",
     );
     expect(statusCaption({ total: 1, capped: false, inView: 401 })).toBe(
       "1 matching property in this radius · 401 markers in view, zoom in for detail",

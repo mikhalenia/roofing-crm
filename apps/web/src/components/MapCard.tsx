@@ -23,7 +23,7 @@ interface Props {
 /** What the map shows and, when a search hit its fetch limit, that more match. */
 export function statusCaption({ total, capped, inView }: Pick<Props, "total" | "capped" | "inView">): string {
   const shown = capped
-    ? `${formatCount(total)} properties shown · the ${SEARCH_LIMIT}-record search limit was reached, so more match in this radius (zoom in or tighten the filters)`
+    ? `${formatCount(total)} properties shown · each search returns at most ${SEARCH_LIMIT} records per signal, so more match in this radius`
     : `${formatCount(total)} matching ${total === 1 ? "property" : "properties"} in this radius`;
   return inView > DENSE_MARKERS ? `${shown} · ${formatCount(inView)} markers in view, zoom in for detail` : shown;
 }
