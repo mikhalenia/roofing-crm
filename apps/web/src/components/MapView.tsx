@@ -105,7 +105,13 @@ export function radiusBounds(pin: { lat: number; lon: number }, radiusMiles: num
 function FitRadius({ pin, radiusMiles, rows }: Pick<Props, "pin" | "radiusMiles" | "rows">) {
   const map = useMap();
   useEffect(() => {
-    map.fitBounds(radiusBounds(pin, radiusMiles), { padding: [12, 12], animate: false });
+    const fit = () => map.fitBounds(radiusBounds(pin, radiusMiles), { padding: [12, 12], animate: false });
+    fit();
+    // The map's size settles after layout (filter bar, agent panel), so fit again when it changes.
+    map.on("resize", fit);
+    return () => {
+      map.off("resize", fit);
+    };
   }, [map, pin, radiusMiles, rows]);
   return null;
 }

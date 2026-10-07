@@ -82,7 +82,8 @@ export function ProspectPage() {
       </Box>
       {wide && agent.open && (
         <Paper
-          sx={{ width: AGENT_WIDTH, flexShrink: 0, p: 2, alignSelf: "flex-start", position: "sticky", top: 80, maxHeight: "calc(100vh - 96px)", overflowY: "auto" }}
+          // minWidth 0: a flex item would otherwise grow to its content's min width.
+          sx={{ width: AGENT_WIDTH, minWidth: 0, flexShrink: 0, p: 2, alignSelf: "flex-start", position: "sticky", top: 80, maxHeight: "calc(100vh - 96px)", overflowY: "auto" }}
         >
           {panel}
         </Paper>
