@@ -42,7 +42,7 @@ describe("ResultsTable", () => {
   it("toggles sort when clicking a header and selects on row click", () => {
     const onSelect = vi.fn();
     render(<ResultsTable rows={rows} onSelect={onSelect} />);
-    fireEvent.click(screen.getByText("Days open"));
+    fireEvent.click(screen.getByText("Open for"));
     const body = screen.getAllByRole("button", { name: /^Open details/ });
     expect(within(body[0] as HTMLElement).getByText("1 Short St")).toBeInTheDocument();
     fireEvent.click(body[0] as HTMLElement);
@@ -71,7 +71,7 @@ describe("ResultsTable", () => {
         onSelect={() => undefined}
       />,
     );
-    expect(screen.getByText("Stalled (expired, no final inspection)")).toBeInTheDocument();
+    expect(screen.getByText("Stalled")).toBeInTheDocument();
     expect(screen.queryByText("expired_unfinaled")).toBeNull();
     expect(screen.getByText("765432")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();

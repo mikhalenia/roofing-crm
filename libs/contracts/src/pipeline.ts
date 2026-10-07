@@ -16,6 +16,10 @@ export const PipelineLead = z.looseObject({
   roofDate: str,
   permitNumber: str,
   permitState: z.enum(['open', 'expired_unfinaled', 'finaled']).nullish(),
+  // Display labels from the pipeline API; the web app falls back to its own mapping.
+  permitStateLabel: str,
+  roofAgeBasisLabel: str,
+  roofAgeConfidenceLabel: str,
   daysOpen: z.number().nullish(),
   issueDate: str,
   finalDate: str,

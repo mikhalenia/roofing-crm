@@ -11,18 +11,9 @@ import {
   Tooltip,
 } from "@mui/material";
 import type { ResultRow } from "../state/search";
-import { formatCount } from "../state/labels";
+import { confidenceLabel, daysText, durationText, permitStateHint, permitStateLabel, roofBasisLabel } from "../labels";
 
 type SortKey = "address" | "city" | "roofAge" | "state" | "daysOpen" | "distance";
-
-const ANCHOR_LABEL: Record<string, string> = {
-  final_date: "Based on final inspection date",
-  approval_complete_issue_date: "Based on approval-complete issue date",
-};
-
-const STATE_LABEL: Record<string, string> = {
-  expired_unfinaled: "Stalled (expired, no final inspection)",
-};
 
 function sortValue(r: ResultRow, key: SortKey): string | number {
   const l = r.lead;
@@ -102,7 +93,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
           {header("roofAge", "Roof age")}
           <TableCell>Permit</TableCell>
           {header("state", "State")}
-          {header("daysOpen", "Days open")}
+          {header("daysOpen", "Open for")}
           <TableCell>Contractor</TableCell>
           <TableCell>CSLB</TableCell>
           <TableCell>BBB</TableCell>
@@ -136,7 +127,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             <TableCell>
               {l.roofAgeYears != null ? (
                 <Tooltip
-                  title={`${ANCHOR_LABEL[l.roofAgeAnchor ?? ""] ?? "Unknown basis"} (${l.roofAgeConfidence ?? "unknown"} confidence)`}
+                  title={`Based on the ${roofBasisLabel(l.roofAgeAnchor, l.roofAgeBasisLabel)} (${confidenceLabel(l.roofAgeConfidence, l.roofAgeConfidenceLabel)})`}
                 >
                   <Chip
                     size="small"
@@ -149,8 +140,18 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
               )}
             </TableCell>
             <TableCell>{l.permitNumber ?? "-"}</TableCell>
-            <TableCell>{l.permitState ? (STATE_LABEL[l.permitState] ?? l.permitState) : "-"}</TableCell>
-            <TableCell>{l.daysOpen != null ? formatCount(l.daysOpen) : "-"}</TableCell>
+            <TableCell>
+              {l.permitState ? (
+                <Tooltip title={l.permitStateLabel || permitStateHint(l.permitState)}>
+                  <span>{permitStateLabel(l.permitState)}</span>
+                </Tooltip>
+              ) : (
+                "-"
+              )}
+            </TableCell>
+            <TableCell sx={{ whiteSpace: "nowrap" }}>
+              {l.daysOpen != null ? <span title={daysText(l.daysOpen)}>{durationText(l.daysOpen)}</span> : "-"}
+            </TableCell>
             <TableCell>{l.contractorCompany ?? "-"}</TableCell>
             <TableCell>
               <Tooltip title={l.cslbStatus ? `CSLB status: ${l.cslbStatus}` : "CSLB status unknown"}>

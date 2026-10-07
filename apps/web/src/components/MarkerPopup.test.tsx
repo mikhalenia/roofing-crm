@@ -34,10 +34,9 @@ describe("MarkerPopup", () => {
     render(<MarkerPopup lead={lead} onDetails={onDetails} onAsk={onAsk} />);
     expect(screen.getByText("1 Main St")).toBeInTheDocument();
     expect(screen.getByText("SAN JOSE, APN A1")).toBeInTheDocument();
-    expect(screen.getByText("Roof 22 yrs (based on final inspection date)")).toBeInTheDocument();
-    expect(
-      screen.getByText("Permit BLD-1: Stalled (expired, no final inspection), 900 days open"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Roof 22 yrs, based on the final inspection date")).toBeInTheDocument();
+    expect(screen.getByText("Permit BLD-1: Stalled (permit expired without a final inspection)")).toBeInTheDocument();
+    expect(screen.getByText("Open 2 years, 5 months")).toHaveAttribute("title", "900 days");
     expect(screen.getByText("Contractor: Acme Roofing")).toBeInTheDocument();
     expect(screen.getByText("Owner: Jane Doe")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Details" }));

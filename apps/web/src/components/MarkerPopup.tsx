@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Portal, Snackbar, Stack, Typography } from "@mui/material";
 import type { PipelineLead } from "@crm/contracts";
-import { formatCount, permitStateLabel, roofAgeText } from "../state/labels";
+import { daysText, durationText, permitStateText, roofAgeText } from "../labels";
 import { useLeadSave } from "./useLeadSave";
 
 interface Props {
@@ -15,7 +15,7 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
   const known = isKnown(l.apn);
   const noCoords = !Number.isFinite(l.lat) || !Number.isFinite(l.lon);
   const permit = l.permitNumber
-    ? `Permit ${l.permitNumber}: ${permitStateLabel(l.permitState)}${l.daysOpen != null ? `, ${formatCount(l.daysOpen)} days open` : ""}`
+    ? `Permit ${l.permitNumber}: ${permitStateText(l.permitState, l.permitStateLabel)}`
     : "No permit on record";
   return (
     <Box sx={{ minWidth: 240, maxWidth: 300 }} role="dialog" aria-label={`Property ${l.situsAddress ?? l.apn}`}>
@@ -25,6 +25,11 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
       </Typography>
       <Typography component="div" variant="body2">{roofAgeText(l)}</Typography>
       <Typography component="div" variant="body2">{permit}</Typography>
+      {l.daysOpen != null && (
+        <Typography component="div" variant="body2" title={daysText(l.daysOpen)}>
+          Open {durationText(l.daysOpen)}
+        </Typography>
+      )}
       <Typography component="div" variant="body2">Contractor: {l.contractorCompany ?? "unknown"}</Typography>
       <Typography component="div" variant="body2">Owner: {l.ownerName ?? "unknown"}</Typography>
       <Stack sx={{ flexDirection: "row", flexWrap: "wrap", gap: 0.5, mt: 1 }}>

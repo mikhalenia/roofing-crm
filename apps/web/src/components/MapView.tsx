@@ -3,7 +3,7 @@ import type { PipelineLead } from "@crm/contracts";
 import { divIcon, type LeafletEventHandlerFnMap, type Marker as LeafletMarker } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import type { Focus, ResultRow } from "../state/search";
-import { hoverLines } from "../state/labels";
+import { hoverLines } from "../labels";
 import { DENSE_MARKERS, PIN_COLOR, markerStyle } from "./mapStyle";
 import { MarkerPopup } from "./MarkerPopup";
 

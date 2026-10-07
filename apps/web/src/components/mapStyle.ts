@@ -4,11 +4,11 @@ import type { Signal } from "../state/search";
 export type MarkerKind = Signal | "other";
 
 /** Muted fill with a darker stroke of the same hue; `strong` is the saturated hover/focus fill. */
-export const SIGNAL_STYLE: Record<MarkerKind, { fill: string; stroke: string; strong: string; label: string }> = {
-  aged_roof: { fill: "#F2B8A2", stroke: "#B8432F", strong: "#D1495B", label: "Aged roof" },
-  stalled_permit: { fill: "#C9D6DF", stroke: "#4F6D7A", strong: "#4F6D7A", label: "Stalled permit (expired, no final)" },
-  open_permit: { fill: "#F6D58A", stroke: "#B07A12", strong: "#E9A23B", label: "Open permit" },
-  other: { fill: "#E3E7EB", stroke: "#7B8794", strong: "#9AA5B1", label: "Other" },
+export const SIGNAL_STYLE: Record<MarkerKind, { fill: string; stroke: string; strong: string }> = {
+  aged_roof: { fill: "#F2B8A2", stroke: "#B8432F", strong: "#D1495B" },
+  stalled_permit: { fill: "#C9D6DF", stroke: "#4F6D7A", strong: "#4F6D7A" },
+  open_permit: { fill: "#F6D58A", stroke: "#B07A12", strong: "#E9A23B" },
+  other: { fill: "#E3E7EB", stroke: "#7B8794", strong: "#9AA5B1" },
 };
 
 /** Above this many markers in view, markers shrink and the caption asks to zoom in. */

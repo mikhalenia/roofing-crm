@@ -38,11 +38,11 @@ describe("PropertyDrawer", () => {
       expect(screen.getByText(t)).toBeInTheDocument();
     }
     expect(screen.getByText(/22 yrs/)).toBeInTheDocument();
-    expect(screen.getByText("BLD-1 · Open · issued 2020-01-01 · 700 days open · Re-roof")).toBeInTheDocument();
+    expect(screen.getByText("BLD-1 · Open · issued Jan 1, 2020 · open 1 year, 10 months · Re-roof")).toBeInTheDocument();
     expect(screen.queryByText(/final -/)).toBeNull();
-    expect(screen.getByText(/based on the final inspection date, high confidence, permit BLD-0/)).toBeInTheDocument();
+    expect(screen.getByText(/22 yrs \(roofed May 1, 2004\), based on the final inspection date, high confidence, permit BLD-0/)).toBeInTheDocument();
     expect(screen.getByText(/Acme Roofing · CSLB 123456 \(active\) · BBB: not available \(no public source\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Jane Doe · observed 2025-02-01/)).toBeInTheDocument();
+    expect(screen.getByText(/Jane Doe · observed Feb 1, 2025/)).toBeInTheDocument();
     expect(screen.getByText("Source: County of Santa Clara (parcels) · City of San José (permit BLD-1) · fetched Oct 1, 2026")).toBeInTheDocument();
     expect(screen.queryByText(/Manifest CID bafyMANIFEST/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
@@ -123,9 +123,9 @@ describe("PropertyDrawer", () => {
     };
     vi.stubGlobal("fetch", vi.fn(async (_u: string) => new Response(JSON.stringify(raw))));
     render(<PropertyDrawer apn="A1" onClose={() => undefined} />);
-    expect(await screen.findByText(/BLD-1 · Stalled \(expired, no final inspection\) · issued/)).toBeInTheDocument();
+    expect(await screen.findByText(/BLD-1 · Stalled \(permit expired without a final inspection\) · issued/)).toBeInTheDocument();
     expect(screen.queryByText(/expired_unfinaled/)).toBeNull();
-    expect(screen.getByText(/based on the completed-approval issue date, medium confidence/)).toBeInTheDocument();
+    expect(screen.getByText(/based on the approval completed \(issue date\),\s+estimated/)).toBeInTheDocument();
     expect(screen.queryByText(/approval_complete_issue_date/)).toBeNull();
     expect(screen.getByText(/Bob Roofing · CSLB license: not matched · BBB: not available \(no public source\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));

@@ -16,7 +16,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { haversineMiles, type PipelineLead } from "@crm/contracts";
 import { PipelineError, fetchProperty, type PropertyDetail } from "../api/pipeline";
-import { formatCount, friendlyDate, permitStateLabel, roofBasisLabel } from "../state/labels";
+import { confidenceLabel, durationText, friendlyDate, permitStateText, roofBasisLabel } from "../labels";
 import { CidLine, TechnicalDetails } from "./TechnicalDetails";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { useLeadSave } from "./useLeadSave";
@@ -184,8 +184,9 @@ export function PropertyDrawer({
             <Section title="Roof age basis">
               {detail.roofAge ? (
                 <Typography variant="body2">
-                  {dash(detail.roofAge.roofAgeYears)} yrs (roof date {dash(detail.roofAge.roofDate)}), based on the{" "}
-                  {roofBasisLabel(detail.roofAge.anchor)}, {detail.roofAge.confidence ?? "unknown"} confidence
+                  {dash(detail.roofAge.roofAgeYears)} yrs (roofed {friendlyDate(detail.roofAge.roofDate) ?? "on an unknown date"}), based on the{" "}
+                  {roofBasisLabel(detail.roofAge.anchor, detail.roofAge.roofAgeBasisLabel)},{" "}
+                  {confidenceLabel(detail.roofAge.confidence, detail.roofAge.roofAgeConfidenceLabel)}
                   {detail.roofAge.permitNumber ? `, permit ${detail.roofAge.permitNumber}` : ""}
                 </Typography>
               ) : (
@@ -198,10 +199,10 @@ export function PropertyDrawer({
                 <Typography key={pm.permitNumber} variant="body2" sx={{ mb: 0.5 }}>
                   {[
                     pm.permitNumber,
-                    pm.permitState ? permitStateLabel(pm.permitState) : "state unknown",
-                    pm.issueDate && `issued ${pm.issueDate}`,
-                    pm.finalDate && `final ${pm.finalDate}`,
-                    pm.daysOpen != null && `${formatCount(pm.daysOpen)} days open`,
+                    permitStateText(pm.permitState, pm.permitStateLabel),
+                    pm.issueDate && `issued ${friendlyDate(pm.issueDate) ?? pm.issueDate}`,
+                    pm.finalDate && `completed ${friendlyDate(pm.finalDate) ?? pm.finalDate}`,
+                    pm.daysOpen != null && `open ${durationText(pm.daysOpen)}`,
                     pm.workDescription,
                   ]
                     .filter(Boolean)
@@ -225,7 +226,7 @@ export function PropertyDrawer({
               {detail.owners.length === 0 && <Typography variant="body2">None observed.</Typography>}
               {detail.owners.map((o, i) => (
                 <Typography key={i} variant="body2">
-                  {dash(o.ownerName)} · observed {dash(o.observedOn)} (permit {dash(o.permitNumber)})
+                  {dash(o.ownerName)} · observed {friendlyDate(o.observedOn) ?? "on an unknown date"} (permit {dash(o.permitNumber)})
                 </Typography>
               ))}
             </Section>

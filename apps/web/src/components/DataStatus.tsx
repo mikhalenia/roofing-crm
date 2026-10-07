@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Box, ButtonBase, Popover, Stack, Tooltip, Typography } from "@mui/material";
 import type { PipelineSnapshot } from "@crm/contracts";
 import { apiBase } from "../api/pipeline";
-import { friendlyDate } from "../state/labels";
+import { friendlyDate } from "../labels";
 import { CidLine, TechnicalDetails } from "./TechnicalDetails";
 
 interface Props {

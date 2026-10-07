@@ -38,6 +38,7 @@ export const PropertyDetail = z.looseObject({
       apn: str,
       status: str,
       permitState: str,
+      permitStateLabel: str,
       isRoofing: z.boolean().nullish(),
       workDescription: str,
       subtype: str,
@@ -60,6 +61,8 @@ export const PropertyDetail = z.looseObject({
       roofAgeYears: num,
       anchor: str,
       confidence: str,
+      roofAgeBasisLabel: str,
+      roofAgeConfidenceLabel: str,
       permitNumber: str,
     })
     .nullish(),
