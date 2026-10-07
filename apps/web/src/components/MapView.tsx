@@ -86,13 +86,27 @@ function placeTooltip(map: LeafletMap | null, e: LeafletMouseEvent) {
   tip.update();
 }
 
-function KeepPinVisible({ pin }: Pick<Props, "pin">) {
+const MILES_PER_DEGREE_LAT = 69.0;
+
+/** The search circle's bounding box: what the map shows after every search. */
+export function radiusBounds(pin: { lat: number; lon: number }, radiusMiles: number): [[number, number], [number, number]] {
+  const dLat = radiusMiles / MILES_PER_DEGREE_LAT;
+  const dLon = radiusMiles / (MILES_PER_DEGREE_LAT * Math.cos((pin.lat * Math.PI) / 180));
+  return [
+    [pin.lat - dLat, pin.lon - dLon],
+    [pin.lat + dLat, pin.lon + dLon],
+  ];
+}
+
+/**
+ * Fits the map to the search circle when the pin, radius or results change. The result markers
+ * are never used for fitting, so a small result set cannot zoom the map out past the circle.
+ */
+function FitRadius({ pin, radiusMiles, rows }: Pick<Props, "pin" | "radiusMiles" | "rows">) {
   const map = useMap();
   useEffect(() => {
-    if (!map.getBounds().contains([pin.lat, pin.lon])) {
-      map.setView([pin.lat, pin.lon], map.getZoom(), { animate: false });
-    }
-  }, [map, pin.lat, pin.lon]);
+    map.fitBounds(radiusBounds(pin, radiusMiles), { padding: [12, 12], animate: false });
+  }, [map, pin, radiusMiles, rows]);
   return null;
 }
 
@@ -197,7 +211,7 @@ export function MapView(props: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <ClickToPin onPin={onPin} />
-      <KeepPinVisible pin={pin} />
+      <FitRadius pin={pin} radiusMiles={radiusMiles} rows={rows} />
       <MapHandle mapRef={mapRef} />
       <FocusOn
         focus={focus}

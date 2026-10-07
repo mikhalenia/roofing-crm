@@ -19,7 +19,7 @@ vi.mock("react-leaflet", () => ({
   Marker: () => null,
   Tooltip: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  useMap: () => ({ getBounds: () => ({ contains: () => true }), getZoom: () => 11, setView: () => undefined, flyTo: () => undefined, on: () => undefined, off: () => undefined }),
+  useMap: () => ({ getBounds: () => ({ contains: () => true }), getZoom: () => 11, setView: () => undefined, flyTo: () => undefined, fitBounds: () => undefined, on: () => undefined, off: () => undefined }),
   useMapEvents: () => null,
 }));
 

@@ -7,7 +7,7 @@ import { MapCard } from "../components/MapCard";
 import { MapView } from "../components/MapView";
 import { PropertyDrawer } from "../components/PropertyDrawer";
 import { ResultsTable } from "../components/ResultsTable";
-import { SearchControls } from "../components/SearchControls";
+import { FilterBar } from "../components/FilterBar";
 import { SearchErrorAlert } from "../components/SearchErrorAlert";
 import { DENSE_MARKERS } from "../components/mapStyle";
 import { useProspectSearch } from "./useProspectSearch";
@@ -19,9 +19,7 @@ export function ProspectPage() {
   const { agent, setOpen, askAbout } = useAgent();
   const theme = useTheme();
   const wide = useMediaQuery(theme.breakpoints.up("md"));
-  // Below xl the map would be too narrow with three columns, so the filters step aside while the agent is open.
-  const roomy = useMediaQuery(theme.breakpoints.up("xl"));
-  const showControls = !(wide && agent.open && !roomy);
+  const phone = useMediaQuery(theme.breakpoints.down("sm"));
   const [selected, setSelected] = useState<string | null>(null);
   const search = useProspectSearch();
   const [inView, setInView] = useState(0);
@@ -32,16 +30,14 @@ export function ProspectPage() {
   const focus = state.focus;
   return (
     <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}>
-      <Paper sx={{ width: { md: 300 }, flexShrink: 0, display: showControls ? undefined : "none" }}>
-        <SearchControls
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <FilterBar
           state={state}
           onRadius={(radiusMiles) => dispatch({ type: "setRadius", radiusMiles })}
           onFilters={(filters) => dispatch({ type: "setFilters", filters })}
           onSearch={search}
           onLocation={onPin}
         />
-      </Paper>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
         <SearchErrorAlert error={state.error} />
         <MapCard
           radiusMiles={state.radiusMiles}
@@ -71,7 +67,8 @@ export function ProspectPage() {
             dense={inView > DENSE_MARKERS}
           />
         </MapCard>
-        <Box sx={{ overflowX: "auto" }}>
+        {/* Full width; scroll sideways only on narrow screens. */}
+        <Box sx={{ overflowX: { xs: "auto", lg: "visible" } }}>
           <ResultsTable
             rows={state.results}
             capped={state.capped}
@@ -90,8 +87,8 @@ export function ProspectPage() {
         </Paper>
       )}
       {!wide && (
-        <Drawer anchor="right" open={agent.open} onClose={() => setOpen(false)}>
-          <Box sx={{ width: { xs: "100vw", sm: AGENT_WIDTH }, p: 2 }}>{panel}</Box>
+        <Drawer anchor={phone ? "bottom" : "right"} open={agent.open} onClose={() => setOpen(false)}>
+          <Box sx={{ width: phone ? "100vw" : AGENT_WIDTH, maxHeight: phone ? "85vh" : undefined, p: 2 }}>{panel}</Box>
         </Drawer>
       )}
       <PropertyDrawer

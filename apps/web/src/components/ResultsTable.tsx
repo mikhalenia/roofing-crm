@@ -61,7 +61,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
   }, [rows, sort]);
 
   const header = (key: SortKey, label: string) => (
-    <TableCell sortDirection={sort.key === key ? sort.dir : false}>
+    <TableCell sortDirection={sort.key === key ? sort.dir : false} sx={{ whiteSpace: "nowrap" }}>
       <TableSortLabel
         active={sort.key === key}
         direction={sort.key === key ? sort.dir : "asc"}
@@ -91,7 +91,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
           {header("address", "Address")}
           {header("city", "City")}
           {header("roofAge", "Roof age")}
-          <TableCell>Permit</TableCell>
+          <TableCell sx={{ whiteSpace: "nowrap" }}>Permit</TableCell>
           {header("state", "State")}
           {header("daysOpen", "Open for")}
           <TableCell>Contractor</TableCell>
@@ -122,8 +122,8 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             }}
             sx={{ cursor: "pointer", ...(l.apn === hoverApn && { bgcolor: "action.hover" }) }}
           >
-            <TableCell>{l.situsAddress ?? "-"}</TableCell>
-            <TableCell>{l.situsCity ?? "-"}</TableCell>
+            <TableCell sx={{ minWidth: 160 }}>{l.situsAddress ?? "-"}</TableCell>
+            <TableCell sx={{ whiteSpace: "nowrap" }}>{l.situsCity ?? "-"}</TableCell>
             <TableCell>
               {l.roofAgeYears != null ? (
                 <Tooltip
@@ -139,8 +139,8 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
                 "-"
               )}
             </TableCell>
-            <TableCell>{l.permitNumber ?? "-"}</TableCell>
-            <TableCell>
+            <TableCell sx={{ whiteSpace: "nowrap" }}>{l.permitNumber ?? "-"}</TableCell>
+            <TableCell sx={{ whiteSpace: "nowrap" }}>
               {l.permitState ? (
                 <Tooltip title={l.permitStateLabel || permitStateHint(l.permitState, l.approvalsComplete)}>
                   <span>{permitStateLabel(l.permitState, l.approvalsComplete)}</span>
@@ -165,7 +165,7 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
             </TableCell>
             <TableCell>not available</TableCell>
             <TableCell>{l.ownerName ?? "-"}</TableCell>
-            <TableCell>{l.distanceMiles.toFixed(1)} mi</TableCell>
+            <TableCell sx={{ whiteSpace: "nowrap" }}>{l.distanceMiles.toFixed(1)} mi</TableCell>
           </TableRow>
         ))}
       </TableBody>

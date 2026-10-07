@@ -16,6 +16,7 @@ vi.mock("react-leaflet", () => ({
     getZoom: () => 11,
     setView: () => undefined,
     flyTo: () => undefined,
+    fitBounds: () => undefined,
     on: () => undefined,
     off: () => undefined,
   }),

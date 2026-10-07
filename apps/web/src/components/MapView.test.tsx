@@ -3,7 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
 import type { ResultRow } from "../state/search";
-import { MapView } from "./MapView";
+import { MapView, radiusBounds } from "./MapView";
 
 const h = vi.hoisted(() => ({
   markers: [] as Record<string, unknown>[],
@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
     getZoom: () => 11,
     setView: vi.fn(),
     flyTo: vi.fn(),
+    fitBounds: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
     latLngToContainerPoint: vi.fn(() => ({ x: 340, y: 8 })),
@@ -164,5 +165,20 @@ describe("MapView", () => {
     const dragend = (pin["eventHandlers"] as { dragend: (e: unknown) => void }).dragend;
     act(() => dragend({ target: { getLatLng: () => ({ lat: 37.36, lng: -121.97 }) } }));
     expect(props.onPin).toHaveBeenCalledWith({ lat: 37.36, lon: -121.97 });
+  });
+
+  it("fits the map to the search circle, never to the result markers", () => {
+    const far = row("FAR", 37.9, -122.6);
+    const { rerender } = render(<MapView {...props} rows={[rows[0]!]} />);
+    const circle = radiusBounds(props.pin, 5);
+    expect(h.map.fitBounds).toHaveBeenLastCalledWith(circle, expect.objectContaining({ padding: [12, 12] }));
+    // New results (here one far outside the circle) refit to the same circle.
+    rerender(<MapView {...props} rows={[rows[0]!, far]} />);
+    expect(h.map.fitBounds).toHaveBeenLastCalledWith(circle, expect.anything());
+    expect(h.map.fitBounds.mock.calls.every(([b]) => JSON.stringify(b) === JSON.stringify(circle))).toBe(true);
+    const [[s, w], [n, e]] = circle;
+    expect(n - s).toBeCloseTo(10 / 69, 6);
+    expect(w).toBeLessThan(-121.9);
+    expect(e).toBeGreaterThan(-121.9);
   });
 });
