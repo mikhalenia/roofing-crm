@@ -1,15 +1,9 @@
-import { useState } from "react";
-import {
-  Button,
-  FormControlLabel,
-  Slider,
-  Stack,
-  Switch,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
+import { useState, type ReactNode } from "react";
+import { Box, Button, IconButton, Slider, Stack, Switch, Tooltip, Typography } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 import type { Filters, SearchState } from "../state/search";
+import { SegmentedControl } from "./SegmentedControl";
 
 interface Props {
   state: SearchState;
@@ -19,9 +13,23 @@ interface Props {
   onLocation: (pin: { lat: number; lon: number }) => void;
 }
 
+/** A caption label with the current value right-aligned on the same row. */
+function Field({ id, label, value, children }: { id: string; label: string; value?: string; children: ReactNode }) {
+  return (
+    <Box>
+      <Stack sx={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
+        <Typography id={id} variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>{label}</Typography>
+        {value && <Typography variant="body2" sx={{ fontWeight: 600 }}>{value}</Typography>}
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
 export function SearchControls({ state, onRadius, onFilters, onSearch, onLocation }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const { filters } = state;
+  const coords = `${state.pin.lat.toFixed(4)}, ${state.pin.lon.toFixed(4)}`;
 
   const useMyLocation = () => {
     setNotice(null);
@@ -36,77 +44,89 @@ export function SearchControls({ state, onRadius, onFilters, onSearch, onLocatio
   };
 
   return (
-    <Stack spacing={1.5} sx={{ p: 2 }}>
-      <Typography variant="subtitle2">
-        Pin: {state.pin.lat.toFixed(4)}, {state.pin.lon.toFixed(4)}
-      </Typography>
-      <Button size="small" onClick={useMyLocation}>
-        Use my location
-      </Button>
-      {notice && <Typography variant="caption" color="warning.main">{notice}</Typography>}
+    <Stack spacing={2.5} sx={{ p: 2 }}>
+      <Box>
+        <Stack sx={{ flexDirection: "row", alignItems: "center", gap: 0.5 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>Pin: {coords}</Typography>
+          <Tooltip title="Copy coordinates">
+            <IconButton size="small" aria-label="Copy coordinates" onClick={() => void navigator.clipboard?.writeText(coords)}>
+              <ContentCopyIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+        <Button size="small" variant="outlined" startIcon={<MyLocationIcon />} onClick={useMyLocation} sx={{ mt: 0.5 }}>
+          Use my location
+        </Button>
+        {notice && <Typography variant="caption" component="div" color="warning.main" sx={{ mt: 0.5 }}>{notice}</Typography>}
+      </Box>
 
-      <div>
-        <Typography id="radius-label" variant="body2">Radius: {state.radiusMiles} mi</Typography>
+      <Field id="radius-label" label="Radius" value={`${state.radiusMiles} mi`}>
         <Slider
           aria-labelledby="radius-label"
+          valueLabelDisplay="auto"
           min={0.5}
           max={25}
           step={0.5}
           value={state.radiusMiles}
           onChange={(_, v) => onRadius(v)}
         />
-      </div>
-      <div>
-        <Typography id="age-label" variant="body2">Min roof age: {filters.minRoofAgeYears} yrs</Typography>
+      </Field>
+      <Field id="age-label" label="Min roof age" value={`${filters.minRoofAgeYears} yrs`}>
         <Slider
           aria-labelledby="age-label"
+          valueLabelDisplay="auto"
           min={5}
           max={40}
           step={1}
           value={filters.minRoofAgeYears}
           onChange={(_, v) => onFilters({ minRoofAgeYears: v })}
         />
-      </div>
-      <div>
-        <Typography variant="body2">Permit state</Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          fullWidth
-          value={filters.permitState}
-          onChange={(_, v: Filters["permitState"] | null) => v && onFilters({ permitState: v })}
-        >
-          <ToggleButton value="open">Open</ToggleButton>
-          <ToggleButton value="expired_unfinaled">Stalled expired</ToggleButton>
-          <ToggleButton value="any">Any</ToggleButton>
-        </ToggleButtonGroup>
-      </div>
-      <div>
-        <Typography id="open-label" variant="body2">Min open years: {filters.minOpenYears}</Typography>
+      </Field>
+      <Field id="state-label" label="Permit state">
+        <Box sx={{ mt: 0.5 }}>
+          <SegmentedControl<Filters["permitState"]>
+            name="permit-state"
+            label="Permit state"
+            value={filters.permitState}
+            onChange={(permitState) => onFilters({ permitState })}
+            options={[
+              { value: "open", label: "Open", hint: "Open = permit still active" },
+              { value: "expired_unfinaled", label: "Stalled", hint: "Stalled = expired without a final inspection" },
+              { value: "any", label: "Any", hint: "Any = open or stalled" },
+            ]}
+          />
+        </Box>
+      </Field>
+      <Field id="open-label" label="Min open years" value={String(filters.minOpenYears)}>
         <Slider
           aria-labelledby="open-label"
+          valueLabelDisplay="auto"
           min={0}
           max={20}
           step={1}
           value={filters.minOpenYears}
           onChange={(_, v) => onFilters({ minOpenYears: v })}
         />
-      </div>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={filters.roofingOnly}
-            onChange={(e) => onFilters({ roofingOnly: e.target.checked })}
-          />
-        }
-        label="Roofing permits only"
-      />
-      <Typography variant="caption" sx={{ color: "text.secondary" }}>
-        Results update as you move the pin or change a filter.
-      </Typography>
-      <Button variant="outlined" size="small" onClick={onSearch} disabled={state.loading}>
-        Refresh
-      </Button>
+      </Field>
+      <Stack sx={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Typography id="roofing-label" variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+          Roofing permits only
+        </Typography>
+        <Switch
+          size="small"
+          checked={filters.roofingOnly}
+          onChange={(e) => onFilters({ roofingOnly: e.target.checked })}
+          slotProps={{ input: { "aria-labelledby": "roofing-label" } }}
+        />
+      </Stack>
+      <Box>
+        <Button variant="outlined" size="small" onClick={onSearch} disabled={state.loading}>
+          Refresh
+        </Button>
+        <Typography variant="caption" component="div" sx={{ color: "text.secondary", mt: 0.5 }}>
+          Searches update automatically.
+        </Typography>
+      </Box>
     </Stack>
   );
 }
