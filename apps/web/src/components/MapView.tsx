@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Circle, CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { markerColor, type ResultRow } from "../state/search";
 
 const MILES_TO_METERS = 1609.344;
@@ -43,7 +43,7 @@ export function MapView({ pin, radiusMiles, minRoofAgeYears, rows, onPin, onSele
       />
       <ClickToPin onPin={onPin} />
       <KeepPinVisible pin={pin} />
-      <Marker position={[pin.lat, pin.lon]} />
+      <CircleMarker center={[pin.lat, pin.lon]} radius={5} interactive={false} pathOptions={{ color: "#000", fillColor: "#fff", fillOpacity: 1, weight: 2 }} />
       <Circle center={[pin.lat, pin.lon]} radius={radiusMiles * MILES_TO_METERS} pathOptions={{ color: "#1565c0", fillOpacity: 0.05 }} />
       {rows.map((row) => {
         const color = markerColor(row, minRoofAgeYears);
@@ -52,6 +52,7 @@ export function MapView({ pin, radiusMiles, minRoofAgeYears, rows, onPin, onSele
             key={row.lead.apn}
             center={[row.lead.lat, row.lead.lon]}
             radius={7}
+            bubblingMouseEvents={false}
             pathOptions={{ color, fillColor: color, fillOpacity: 0.8 }}
             eventHandlers={{ click: () => onSelect(row.lead.apn) }}
           >

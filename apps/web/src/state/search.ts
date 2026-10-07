@@ -101,7 +101,7 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
         loading: false,
         error: null,
         results: mergeResults(action.aged, action.open),
-        snapshot: action.open.snapshot,
+        snapshot: action.aged.snapshot ?? action.open.snapshot,
       };
     case "searchFailed":
       // Keep previous results so a transient failure does not blank the table.

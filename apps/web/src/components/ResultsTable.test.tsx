@@ -27,7 +27,7 @@ const rows = [
 describe("ResultsTable", () => {
   it("renders rows sorted by days open desc by default", () => {
     render(<ResultsTable rows={rows} onSelect={() => undefined} />);
-    const body = screen.getAllByRole("row").slice(1);
+    const body = screen.getAllByRole("button", { name: /^Open details/ });
     expect(body).toHaveLength(2);
     expect(within(body[0] as HTMLElement).getByText("2 Long St")).toBeInTheDocument();
     expect(within(body[1] as HTMLElement).getByText("1 Short St")).toBeInTheDocument();
@@ -43,9 +43,21 @@ describe("ResultsTable", () => {
     const onSelect = vi.fn();
     render(<ResultsTable rows={rows} onSelect={onSelect} />);
     fireEvent.click(screen.getByText("Days open"));
-    const body = screen.getAllByRole("row").slice(1);
+    const body = screen.getAllByRole("button", { name: /^Open details/ });
     expect(within(body[0] as HTMLElement).getByText("1 Short St")).toBeInTheDocument();
     fireEvent.click(body[0] as HTMLElement);
     expect(onSelect).toHaveBeenCalledWith("A");
+  });
+
+  it("opens a row with Enter and Space", () => {
+    const onSelect = vi.fn();
+    render(<ResultsTable rows={rows} onSelect={onSelect} />);
+    const first = screen.getAllByRole("button", { name: /^Open details/ })[0] as HTMLElement;
+    expect(first).toHaveAttribute("tabindex", "0");
+    expect(first).toHaveAttribute("aria-label", "Open details for 2 Long St");
+    fireEvent.keyDown(first, { key: "Enter" });
+    fireEvent.keyDown(first, { key: " " });
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(onSelect).toHaveBeenCalledWith("B");
   });
 });

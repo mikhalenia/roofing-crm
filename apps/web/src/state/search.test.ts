@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineLead } from "@crm/contracts";
-import { initialState, searchReducer } from "./search";
+import { initialState, markerColor, searchReducer, toSearchParams, type Signal } from "./search";
 
 const provenance = {
   propertySourceUrl: "u",
@@ -111,5 +111,42 @@ describe("searchReducer", () => {
     s = searchReducer(s, { type: "healthFailed", error: "down" });
     expect(s.healthError).toBe("down");
     expect(s.snapshot).toEqual(snapshot);
+  });
+});
+
+describe("toSearchParams", () => {
+  it("maps state to query params for both endpoints", () => {
+    const s = searchReducer(
+      searchReducer(initialState, { type: "setRadius", radiusMiles: 7.5 }),
+      { type: "setFilters", filters: { permitState: "any", minOpenYears: 2, roofingOnly: false, minRoofAgeYears: 20 } },
+    );
+    expect(toSearchParams(s)).toEqual({
+      lat: 37.3382,
+      lon: -121.8863,
+      radiusMiles: 7.5,
+      minRoofAgeYears: 20,
+      permitState: "any",
+      minOpenYears: 2,
+      roofingOnly: false,
+      limit: 200,
+    });
+  });
+});
+
+describe("markerColor", () => {
+  const mk = (signals: Signal[], roofAgeYears?: number) => ({
+    lead: lead("X", { roofAgeYears }),
+    signals: new Set<Signal>(signals),
+  });
+  it("red wins over orange when aged roof meets threshold", () => {
+    expect(markerColor(mk(["aged_roof", "open_permit"], 20), 15)).toBe("#d32f2f");
+  });
+  it("orange for open permit, grey for stalled, blue otherwise", () => {
+    expect(markerColor(mk(["open_permit"]), 15)).toBe("#ed6c02");
+    expect(markerColor(mk(["stalled_permit"]), 15)).toBe("#757575");
+    expect(markerColor(mk(["aged_roof"], 10), 15)).toBe("#1976d2");
+  });
+  it("orange beats grey when both signals exist", () => {
+    expect(markerColor(mk(["stalled_permit", "open_permit"]), 15)).toBe("#ed6c02");
   });
 });

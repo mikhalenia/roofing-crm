@@ -99,7 +99,16 @@ export function ResultsTable({ rows, onSelect, selectedApn = null }: Props) {
             key={l.apn}
             hover
             selected={l.apn === selectedApn}
+            tabIndex={0}
+            role="button"
+            aria-label={`Open details for ${l.situsAddress ?? l.apn}`}
             onClick={() => onSelect(l.apn)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(l.apn);
+              }
+            }}
             sx={{ cursor: "pointer" }}
           >
             <TableCell>{l.situsAddress ?? "-"}</TableCell>
