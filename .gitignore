@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.nx/
+.wrangler/
+.env
+coverage/
+test-results/
+playwright-report/
+.superpowers/
+
+vitest.config.*.timestamp*
+vite.config.*.timestamp*

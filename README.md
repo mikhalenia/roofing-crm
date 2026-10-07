@@ -44,3 +44,7 @@ The UI should present property and permit details, including contractor informat
 ## Reference
 - [Soofi XYZ Team Kit](https://github.com/soofi-xyz/soofi-xyz-team-kit)
 - [Elephant Oracle Skills](https://github.com/elephant-xyz/skills)
+
+## Candidate implementation
+
+See `docs/superpowers/specs/2026-10-07-roofing-crm-design.md` for the design and `CLAUDE.md` for the agent guide.
