@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from "@mui/material";
 import { formatCount } from "../labels";
+import { SEARCH_LIMIT } from "../state/search";
 import { DENSE_MARKERS } from "./mapStyle";
 import { MapLegend } from "./MapLegend";
 
@@ -19,10 +20,11 @@ interface Props {
   children: ReactNode;
 }
 
+/** What the map shows and, when a search hit its fetch limit, that more match. */
 export function statusCaption({ total, capped, inView }: Pick<Props, "total" | "capped" | "inView">): string {
   const shown = capped
-    ? `Showing ${formatCount(total)} of at least ${formatCount(total)} matches`
-    : `${formatCount(total)} matching ${total === 1 ? "property" : "properties"} in this radius (showing all)`;
+    ? `${formatCount(total)} properties shown · the ${SEARCH_LIMIT}-record search limit was reached, so more match in this radius (zoom in or tighten the filters)`
+    : `${formatCount(total)} matching ${total === 1 ? "property" : "properties"} in this radius`;
   return inView > DENSE_MARKERS ? `${shown} · ${formatCount(inView)} markers in view, zoom in for detail` : shown;
 }
 

@@ -82,7 +82,7 @@ describe("ResultsTable", () => {
     const { rerender } = render(<ResultsTable rows={rows} onSelect={() => undefined} />);
     expect(screen.getByText("2 results")).toBeInTheDocument();
     rerender(<ResultsTable rows={rows} capped onSelect={() => undefined} />);
-    expect(screen.getByText(/Showing 2 of at least 2/)).toBeInTheDocument();
+    expect(screen.getByText("2 properties shown · more match (search limit reached)")).toBeInTheDocument();
   });
 
   it("reports row hover and highlights the hovered row", () => {

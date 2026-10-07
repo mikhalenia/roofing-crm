@@ -13,16 +13,18 @@ describe("MapCard", () => {
     expect(screen.getByRole("heading", { name: "Santa Clara County" })).toBeInTheDocument();
     expect(screen.getByText("5-mile radius")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Map legend" })).toHaveTextContent(/Aged roof.*Open permit.*Stalled permit.*Other.*Larger dot/);
-    expect(screen.getByTestId("map-status")).toHaveTextContent("203 matching properties in this radius (showing all)");
+    expect(screen.getByTestId("map-status")).toHaveTextContent("203 matching properties in this radius");
     expect(screen.getByText(/Search center: 37.3382, -121.8863/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Agent" }));
     expect(onToggleAgent).toHaveBeenCalled();
   });
 
   it("words capped and dense views", () => {
-    expect(statusCaption({ total: 200, capped: true, inView: 120 })).toBe("Showing 200 of at least 200 matches");
+    expect(statusCaption({ total: 395, capped: true, inView: 120 })).toBe(
+      "395 properties shown · the 200-record search limit was reached, so more match in this radius (zoom in or tighten the filters)",
+    );
     expect(statusCaption({ total: 1, capped: false, inView: 401 })).toBe(
-      "1 matching property in this radius (showing all) · 401 markers in view, zoom in for detail",
+      "1 matching property in this radius · 401 markers in view, zoom in for detail",
     );
   });
 });

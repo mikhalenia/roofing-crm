@@ -98,7 +98,7 @@ test("README demo transcript", async ({ page, request }) => {
       expect(await rows.count()).toBeGreaterThan(0);
       await expect(page.locator("path.result-marker--aged_roof").first()).toBeAttached();
       await expect(page.getByRole("list", { name: "Map legend" })).toBeVisible();
-      await expect(page.getByTestId("map-status")).toContainText(/matching propert|of at least [\d,]+ matches/);
+      await expect(page.getByTestId("map-status")).toContainText(/matching propert|properties shown/);
       await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
       await page.locator("path.result-marker").first().hover({ force: true });
       await expect(page.locator(".leaflet-tooltip").first()).toContainText(/Roof (\d+ yrs|age unknown)/);

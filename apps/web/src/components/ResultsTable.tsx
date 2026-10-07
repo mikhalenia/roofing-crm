@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import type { ResultRow } from "../state/search";
-import { confidenceLabel, daysText, durationText, permitStateHint, permitStateLabel, roofBasisLabel } from "../labels";
+import { confidenceLabel, daysText, formatCount, durationText, permitStateHint, permitStateLabel, roofBasisLabel } from "../labels";
 
 type SortKey = "address" | "city" | "roofAge" | "state" | "daysOpen" | "distance";
 
@@ -82,8 +82,8 @@ export function ResultsTable({ rows, onSelect, selectedApn = null, capped = fals
     <>
     <Typography variant="body2" sx={{ px: 1, py: 0.5 }} data-testid="results-count">
       {capped
-        ? `Showing ${rows.length} of at least ${rows.length} (the search hit the 200-record limit; narrow the radius to see all)`
-        : `${rows.length} results`}
+        ? `${formatCount(rows.length)} properties shown · more match (search limit reached)`
+        : `${formatCount(rows.length)} ${rows.length === 1 ? "result" : "results"}`}
     </Typography>
     <Table size="small" stickyHeader>
       <TableHead>
