@@ -17,6 +17,8 @@ describe('replaceRawTokens', () => {
     expect(replaceRawTokens('Unfinaled permit at 1 Elm St.')).toBe('Permit that expired without a final inspection at 1 Elm St.');
     expect(replaceRawTokens('Expired_unfinaled, since 2003.')).toBe('Expired without a final inspection, since 2003.');
     expect(replaceRawTokens('The permit is expired_unfinaled.')).toBe('The permit is expired without a final inspection.');
+    expect(replaceRawTokens('It has an unfinaled permit.')).toBe('It has a permit that expired without a final inspection.');
+    expect(replaceRawTokens('An expired_unfinaled permit at 1 Elm St.')).toBe('A permit that expired without a final inspection at 1 Elm St.');
     expect(replaceRawTokens('Open roofs, final inspection')).toBe('Open roofs, final inspection');
   });
 

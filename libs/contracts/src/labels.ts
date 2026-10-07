@@ -67,6 +67,8 @@ const EXPIRED = 'expired without a final inspection';
  * A state phrase before "permit(s)" is moved after the noun so the sentence stays grammatical.
  */
 export const RAW_TOKEN_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
+  // "an unfinaled permit" -> "a permit that expired without a final inspection"
+  [new RegExp(`\\b(?:an?)\\s+${q}\\b(?:expired_unfinaled|expired,?\\s+unfinaled|unfinaled)\\b${q}\\s+(permits?)\\b`, 'gi'), `a $1 that ${EXPIRED}`],
   [new RegExp(`${q}\\b(?:expired_unfinaled|expired,?\\s+unfinaled|unfinaled)\\b${q}\\s+(permits?)\\b`, 'gi'), `$1 that ${EXPIRED}`],
   [new RegExp(`${q}\\b(?:expired_unfinaled|expired,?\\s+unfinaled|unfinaled)\\b${q}`, 'gi'), EXPIRED],
   [token('approval_complete_issue_date'), ROOF_BASIS_LABELS['approval_complete_issue_date']!],
