@@ -28,14 +28,17 @@ const COUNTED = "properties|property|roofs|permits|matches|results|records|homes
  */
 export function fixCounts(answer: string, toolCalls: ReadonlyArray<ToolCall>): string {
   const capped = toolCalls.filter((t) => t.capped === true && !t.error);
-  const re = new RegExp(`\\bat least (\\d[\\d,]*) (${COUNTED})\\b`, "gi");
-  if (capped.length === 0) return answer.replace(re, "$1 $2");
+  // "at least 5 open roofing permits": up to three words may sit between the number and the noun.
+  const re = new RegExp(`\\b(at least) (\\d[\\d,]*)((?:\\s+[\\w-]+){0,3}?\\s+(?:${COUNTED}))\\b`, "gi");
+  if (capped.length === 0) return answer.replace(re, (_m, lead: string, n: string, rest: string) => startCase(lead, `${n}${rest}`));
   const fetched = Math.max(...capped.map((t) => t.resultCount));
-  return answer.replace(re, (m, n: string, what: string) => {
-    const value = Number(n.replace(/,/g, ""));
-    return value < fetched ? `${m.slice(0, 8)} ${fetched.toLocaleString("en-US")} ${what}` : m;
-  });
+  return answer.replace(re, (m, lead: string, n: string, rest: string) =>
+    Number(n.replace(/,/g, "")) < fetched ? `${lead} ${fetched.toLocaleString("en-US")}${rest}` : m,
+  );
 }
+
+/** Keeps the capital of a sentence-initial "At least" on the text that replaces it. */
+const startCase = (lead: string, text: string) => (lead[0] === "A" ? text[0]!.toUpperCase() + text.slice(1) : text);
 
 /**
  * Prompt rule 5 in code: when the search results include no stalled record (isStalled false
@@ -44,9 +47,17 @@ export function fixCounts(answer: string, toolCalls: ReadonlyArray<ToolCall>): s
  */
 export function groundStalled(answer: string, evidence: Evidence): string {
   if (evidence.shown === 0 || evidence.stalledShown > 0) return answer;
+  // Only affirmative claims are wrong; "none of them has a stalled permit" is true and stays.
   return answer
-    .replace(/\bstalled\s+(permits?)\b/gi, (_m, noun: string) => `${noun} that expired after all approvals were completed`)
-    .replace(/\bstalled\b/gi, "expired (work approved)");
+    .split(/(?<=[.!?])(\s+)/)
+    .map((sentence) =>
+      /\b(no|none|not|never|neither|nor|zero|without)\b/i.test(sentence)
+        ? sentence
+        : sentence
+            .replace(/\bstalled\s+(permits?)\b/gi, (_m, noun: string) => `${noun} that expired after all approvals were completed`)
+            .replace(/\bstalled\b/gi, "expired (work approved)"),
+    )
+    .join("");
 }
 
 const fold = (s: string) =>
@@ -84,20 +95,19 @@ export function ensureSources(
   extracted: Source[],
   returned: ReadonlyArray<Source>,
 ): { answer: string; sources: Source[] } {
-  let sources = extracted;
-  if (sources.length === 0) {
-    const prose = answer.replace(sourcesLine, "").toLowerCase();
-    const seen = new Set<string>();
-    sources = returned.filter((r) => {
-      if (!r.address || seen.has(r.apn) || !prose.includes(r.address.toLowerCase())) return false;
-      seen.add(r.apn);
-      return true;
-    });
-  }
+  // Records the prose names by address count as relied on, even if their APN is missing.
+  const prose = answer.replace(sourcesLine, "").toLowerCase();
+  const seen = new Set(extracted.map((s) => s.apn));
+  const named = returned.filter((r) => {
+    if (!r.address || seen.has(r.apn) || !prose.includes(r.address.toLowerCase())) return false;
+    seen.add(r.apn);
+    return true;
+  });
+  const sources = [...extracted, ...named];
   if (sources.length === 0) return { answer, sources };
-  const line = `SOURCES: ${[...new Set(sources.map((s) => s.apn))].slice(0, 10).join(", ")}`;
   const current = sourcesLine.exec(answer)?.[0] ?? "";
   const empty = !/SOURCES:\s*\S/.test(current) || /SOURCES:\s*none\b/i.test(current);
-  if (current && !empty) return { answer, sources };
+  if (current && !empty && named.length === 0) return { answer, sources };
+  const line = `SOURCES: ${[...new Set(sources.map((s) => s.apn))].slice(0, 10).join(", ")}`;
   return { answer: `${answer.replace(sourcesLine, "").trimEnd()}\n${line}`, sources };
 }

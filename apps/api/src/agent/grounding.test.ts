@@ -9,9 +9,13 @@ describe("fixCounts (c)", () => {
     expect(fixCounts("At least 25 roofs match; showing 25.", [aged])).toBe("At least 200 roofs match; showing 25.");
     expect(fixCounts("at least 200 properties", [aged])).toBe("at least 200 properties");
     expect(fixCounts("roofs at least 15 years old", [aged])).toBe("roofs at least 15 years old");
+    expect(fixCounts("at least 25 aged roof properties", [aged])).toBe("at least 200 aged roof properties");
   });
   it("drops 'at least' when nothing was capped", () => {
     expect(fixCounts("At least 3 permits matched.", [{ ...aged, resultCount: 3, capped: false }])).toBe("3 permits matched.");
+    expect(fixCounts("At least 5 open roofing permits were found.", [{ ...aged, resultCount: 5, capped: false }])).toBe(
+      "5 open roofing permits were found.",
+    );
   });
 });
 
@@ -19,6 +23,12 @@ describe("groundStalled (a)", () => {
   it("rewrites 'stalled' when no shown record is stalled", () => {
     expect(groundStalled("These 25 roofs have stalled permits; one is stalled since 2003.", ev({ shown: 25, stalledShown: 0 }))).toBe(
       "These 25 roofs have permits that expired after all approvals were completed; one is expired (work approved) since 2003.",
+    );
+  });
+  it("keeps a true negative claim", () => {
+    const text = "200 roofs matched; none of them have stalled permits. 670 10TH ST has a stalled permit.";
+    expect(groundStalled(text, ev({ shown: 25, stalledShown: 0 }))).toBe(
+      "200 roofs matched; none of them have stalled permits. 670 10TH ST has a permit that expired after all approvals were completed.",
     );
   });
   it("keeps 'stalled' when the results contain stalled records, or when nothing was shown", () => {
@@ -55,5 +65,10 @@ describe("ensureSources (b)", () => {
     expect(ensureSources("A1 is old.", [{ apn: "A1" }], returned).answer).toBe("A1 is old.\nSOURCES: A1");
     expect(ensureSources("A1 is old.\nSOURCES: A1", [{ apn: "A1" }], returned).answer).toBe("A1 is old.\nSOURCES: A1");
     expect(ensureSources("Nothing matched.\nSOURCES: none", [], returned)).toEqual({ answer: "Nothing matched.\nSOURCES: none", sources: [] });
+  });
+  it("adds records named by address to a partial SOURCES line", () => {
+    const out = ensureSources("A1 at 1 Main St and also 2 Oak Ave.\nSOURCES: A1, 259", [{ apn: "A1", address: "1 MAIN ST" }], returned);
+    expect(out.sources.map((s) => s.apn)).toEqual(["A1", "A2"]);
+    expect(out.answer).toBe("A1 at 1 Main St and also 2 Oak Ave.\nSOURCES: A1, A2");
   });
 });
