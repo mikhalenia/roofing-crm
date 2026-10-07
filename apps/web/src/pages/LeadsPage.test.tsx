@@ -72,7 +72,7 @@ describe("LeadsPage", () => {
   it("scopes the list to the current pin and radius", async () => {
     setup();
     await screen.findByText("1 Main St");
-    fireEvent.click(screen.getByLabelText(/within current radius/i));
+    fireEvent.click(screen.getByLabelText("Within 5 mi of the Prospect pin (default: downtown San José)"));
     await waitFor(() =>
       expect(api.listLeads).toHaveBeenLastCalledWith({ lat: 37.3382, lon: -121.8863, radiusMiles: 5 }),
     );
@@ -112,5 +112,34 @@ describe("LeadsPage", () => {
     const probe = JSON.parse((await screen.findByTestId("focus")).textContent ?? "{}");
     expect(probe.focus).toEqual({ apn: "A2", lat: 37.3, lon: -121.9 });
     expect(probe.pin).toEqual({ lat: 37.3382, lon: -121.8863 });
+  });
+
+  it("shows readable state, days open and created date", async () => {
+    api.listLeads.mockResolvedValue([
+      { ...mk("A3", "3 Elm St"), snapshot: { ...mk("A3", "3 Elm St").snapshot, permitState: "expired_unfinaled", daysOpen: 7842 } },
+    ]);
+    setup();
+    expect(await screen.findByText("Stalled")).toBeInTheDocument();
+    expect(screen.queryByText("expired_unfinaled")).toBeNull();
+    expect(screen.getByText("7,842")).toBeInTheDocument();
+    expect(screen.getByText("Oct 1, 2026")).toBeInTheDocument();
+    expect(screen.getByLabelText("Notes for 3 Elm St")).toHaveAttribute("placeholder", "Add a note…");
+  });
+
+  it("labels the radius switch with a moved pin and links to the map", async () => {
+    const { radiusLabel } = await import("../components/LeadFilters");
+    expect(radiusLabel({ lat: 37.35123, lon: -121.95678 }, 3)).toBe("Within 3 mi of the Prospect pin (37.351, -121.957)");
+    setup();
+    await screen.findByText("1 Main St");
+    fireEvent.click(screen.getByRole("button", { name: "Change on map" }));
+    expect(await screen.findByTestId("focus")).toBeInTheDocument();
+  });
+
+  it("shows a saved check after the debounced note PATCH", async () => {
+    setup();
+    const box = await screen.findByLabelText("Notes for 1 Main St");
+    fireEvent.change(box, { target: { value: "call back" } });
+    expect(await screen.findByLabelText("Note saved", {}, { timeout: 2000 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByLabelText("Note saved")).toBeNull(), { timeout: 3000 });
   });
 });

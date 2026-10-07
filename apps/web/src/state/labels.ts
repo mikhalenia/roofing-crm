@@ -24,6 +24,9 @@ export function roofAgeText(l: PipelineLead): string {
 
 const SHORT_STATE: Record<string, string> = { open: "Open", expired_unfinaled: "Stalled", finaled: "Finaled" };
 
+/** "Stalled" for expired_unfinaled; the long form (permitStateLabel) goes in a tooltip. */
+export const shortStateLabel = (s: string | null | undefined) => (s ? (SHORT_STATE[s] ?? s) : "No permit");
+
 /** 7842 -> "7,842". */
 export const formatCount = (n: number) => n.toLocaleString("en-US");
 
@@ -33,7 +36,7 @@ export function hoverLines(l: PipelineLead): [string, string, string] {
     l.roofAgeYears != null
       ? `Roof ${l.roofAgeYears} yrs${l.roofAgeConfidence ? ` (${l.roofAgeConfidence} confidence)` : ""}`
       : "Roof age unknown";
-  const state = l.permitState ? (SHORT_STATE[l.permitState] ?? l.permitState) : "No permit";
+  const state = shortStateLabel(l.permitState);
   const permit = l.daysOpen != null ? `${state} · ${formatCount(l.daysOpen)} days open` : state;
   return [l.situsAddress ?? l.apn, roof, permit];
 }

@@ -48,8 +48,18 @@ export function LeadsPage() {
 
   useEffect(load, [load]);
 
+  /** Resolves true when the PATCH succeeded. */
   const patch = (apn: string, body: UpdateLead) =>
-    updateLead(apn, body).then(load, (e: unknown) => setError(errorText(e)));
+    updateLead(apn, body).then(
+      () => {
+        load();
+        return true;
+      },
+      (e: unknown) => {
+        setError(errorText(e));
+        return false;
+      },
+    );
 
   const confirmDelete = () => {
     const lead = toDelete;
@@ -61,7 +71,7 @@ export function LeadsPage() {
   return (
     <>
       <Typography variant="h5" component="h2" sx={{ mb: 2 }}>Leads</Typography>
-      <LeadFilters value={value} onChange={setValue} />
+      <LeadFilters value={value} onChange={setValue} pin={pin} radiusMiles={radiusMiles} onChangeOnMap={() => navigate("/")} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {leads && leads.length === 0 && (
         <Typography>No leads yet. Save properties from the Prospect page or ask the agent.</Typography>
@@ -86,7 +96,7 @@ export function LeadsPage() {
                 key={l.apn}
                 lead={l}
                 onStatus={(apn, status: LeadStatus) => void patch(apn, { status })}
-                onNotes={(apn, notes) => void patch(apn, { notes })}
+                onNotes={(apn, notes) => patch(apn, { notes })}
                 onDelete={setToDelete}
                 onShowOnMap={(l) => {
                   // The pin stays; the map pans to the lead and opens its popup or drawer.

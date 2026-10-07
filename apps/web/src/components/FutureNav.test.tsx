@@ -9,4 +9,9 @@ describe("FutureNav", () => {
       expect(screen.getByText(label).closest("[aria-disabled='true']")).not.toBeNull();
     }
   });
+
+  it("groups them under a Coming later subheader", () => {
+    render(<FutureNav />);
+    expect(screen.getByRole("list", { name: "Coming later" })).toBeInTheDocument();
+  });
 });
