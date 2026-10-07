@@ -62,7 +62,7 @@ export function getAgentDeps(): AgentDeps {
 
 function contextLine(req: AgentRequest): string {
   return req.context
-    ? `\nCurrent map context: lat ${req.context.lat}, lon ${req.context.lon}, radius ${req.context.radiusMiles} miles.`
+    ? `\nCurrent map context: lat ${req.context.lat}, lon ${req.context.lon}, radius ${req.context.radiusMiles} miles. If the question names a place, geocode it instead.`
     : "\nNo map context; call geocode_place when the question names a place.";
 }
 
@@ -167,12 +167,19 @@ export async function runAgent(
       const failed = step.content.find(
         (p) => p.type === "tool-error" && p.toolCallId === call.toolCallId,
       );
-      const count = (res?.output as { count?: unknown } | undefined)?.count;
+      const out = (res?.output ?? {}) as { count?: unknown; fetched?: unknown; error?: unknown };
+      const count = typeof out.fetched === "number" ? out.fetched : out.count;
+      // A tool can also report a soft failure (unknown place, unknown APN) as an `error` field.
+      const error = failed
+        ? errorMessage(failed.error)
+        : typeof out.error === "string" && out.error.trim()
+          ? out.error
+          : undefined;
       toolCalls.push({
         name: call.toolName,
         args: call.input,
         resultCount: !failed && typeof count === "number" ? count : 0,
-        ...(failed ? { error: errorMessage(failed.error) } : {}),
+        ...(error ? { error } : {}),
       });
       if (res && !failed) returned.push(...sourcesOf(call, res.output, answer));
     }

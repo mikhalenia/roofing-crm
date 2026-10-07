@@ -14,6 +14,8 @@ export interface LeadStore {
 
 /** Max records handed back to the model per call, to keep the context small. */
 export const MAX_ITEMS = 25;
+/** The pipeline's default `limit` when the model omits it. */
+export const DEFAULT_LIMIT = 200;
 
 /** The fields of a pipeline record the model gets to see. */
 export function trimLead(l: PipelineLead) {
@@ -76,8 +78,15 @@ export function buildTools(pipelineApi: string, fetcher: typeof fetch, leadStore
     const seen = body.items.slice(0, MAX_ITEMS);
     // Only the records the model actually saw may become leads.
     for (const item of seen) returned.set(item.apn, item);
+    const fetched = body.items.length;
+    const limit = typeof params["limit"] === "number" ? params["limit"] : DEFAULT_LIMIT;
     return {
-      count: body.items.length,
+      // `count` is kept for older clients; it equals `fetched`, not the total number of matches.
+      count: fetched,
+      fetched,
+      // The pipeline returned as many records as asked for, so more may match.
+      capped: fetched >= limit,
+      shown: seen.length,
       manifestCid: body.snapshot.manifestCid,
       items: seen.map(trimLead),
     };

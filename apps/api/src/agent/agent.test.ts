@@ -114,6 +114,9 @@ describe("buildTools", () => {
     const tools = buildTools("https://pipeline.test", fn, leadStore());
     const out = (await exec(tools.find_aged_roofs, AGED)) as {
       count: number;
+      fetched: number;
+      capped: boolean;
+      shown: number;
       manifestCid: string;
       items: Record<string, unknown>[];
     };
@@ -122,6 +125,9 @@ describe("buildTools", () => {
     expect(url.searchParams.get("minRoofAgeYears")).toBe("20");
     expect(url.searchParams.get("radiusMiles")).toBe("5");
     expect(out.count).toBe(30);
+    expect(out.fetched).toBe(30);
+    expect(out.capped).toBe(false);
+    expect(out.shown).toBe(25);
     expect(out.manifestCid).toBe("bafy-manifest");
     expect(out.items).toHaveLength(25);
     expect(out.items[0]).toEqual({
@@ -139,6 +145,15 @@ describe("buildTools", () => {
       distanceMiles: 1.2,
       permitSourceUrl: "https://example.test/permit",
     });
+  });
+
+  it("flags a result set that hit the fetch limit as capped", async () => {
+    const many = Array.from({ length: 10 }, (_, i) => pipelineLead(`A-${i}`));
+    const tools = buildTools("https://pipeline.test", stubFetch(many).fn, leadStore());
+    const capped = (await exec(tools.find_aged_roofs, { ...AGED, limit: 10 })) as Record<string, unknown>;
+    expect(capped).toMatchObject({ fetched: 10, capped: true, shown: 10 });
+    const defaulted = (await exec(tools.find_aged_roofs, AGED)) as Record<string, unknown>;
+    expect(defaulted).toMatchObject({ fetched: 10, capped: false, shown: 10 });
   });
 
   it("accepts numbers and booleans sent as strings (llama does this)", () => {
@@ -228,6 +243,50 @@ describe("runAgent", () => {
       },
     );
     expect(gen.seen[0]!.system).toContain("lat 37.3, lon -121.9, radius 2 miles");
+  });
+
+  it("tells the model to geocode a named place even with map context, and to word capped counts", async () => {
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "none");
+    await runAgent(
+      env,
+      { question: "Old roofs in Cupertino?", context: { lat: 37.3, lon: -121.9, radiusMiles: 2 } },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    const system = gen.seen[0]!.system;
+    expect(system).toMatch(/names a place, ALWAYS call geocode_place/);
+    expect(system).toMatch(/even when map context is given/);
+    expect(system).toContain("capped");
+    expect(system).toContain("at least N matched");
+  });
+
+  it("reports tool results that carry an error field in toolCalls[].error", async () => {
+    const gen = scripted(
+      [
+        { toolName: "geocode_place", input: { name: "Atlantis" } },
+        { toolName: "create_lead", input: { apn: "NOPE" } },
+      ],
+      "Atlantis is not a known place. Nothing was saved.",
+    );
+    const res = await runAgent(
+      env,
+      { question: "Save NOPE near Atlantis", context: null },
+      { generateText: gen.fn, fetch: stubFetch([]).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.toolCalls[0]).toMatchObject({ name: "geocode_place", resultCount: 0 });
+    expect(res.toolCalls[0]!.error).toMatch(/Unknown place "Atlantis"/);
+    expect(res.toolCalls[1]).toMatchObject({ name: "create_lead", resultCount: 0 });
+    expect(res.toolCalls[1]!.error).toMatch(/NOPE was not returned/);
+  });
+
+  it("reports the fetched count (not the 25 shown) as resultCount", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => pipelineLead(`A-${i}`));
+    const gen = scripted([{ toolName: "find_aged_roofs", input: AGED }], "At least 40 matched. Fine.");
+    const res = await runAgent(
+      env,
+      { question: "Old roofs?", context: null },
+      { generateText: gen.fn, fetch: stubFetch(many).fn, leadStore: leadStore(), model: "test-model" },
+    );
+    expect(res.toolCalls[0]!.resultCount).toBe(40);
   });
 
   it("wires create_lead to the lead store with the returned record", async () => {
