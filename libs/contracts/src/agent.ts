@@ -1,0 +1,22 @@
+import { z } from 'zod';
+import { PartialSearchParams } from './search';
+
+export const AgentRequest = z.object({
+  question: z.string().min(3).max(500),
+  context: z
+    .object({ lat: z.number(), lon: z.number(), radiusMiles: z.number() })
+    .nullable(),
+});
+export type AgentRequest = z.infer<typeof AgentRequest>;
+
+export const AgentResponse = z.object({
+  answer: z.string(),
+  toolCalls: z.array(
+    z.object({ name: z.string(), args: z.unknown(), resultCount: z.number() }),
+  ),
+  sources: z.array(
+    z.object({ apn: z.string(), permitNumber: z.string().optional(), address: z.string().optional() }),
+  ),
+  resolvedFilters: PartialSearchParams.nullable(),
+});
+export type AgentResponse = z.infer<typeof AgentResponse>;
