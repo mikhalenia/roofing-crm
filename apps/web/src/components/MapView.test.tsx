@@ -168,17 +168,41 @@ describe("MapView", () => {
   });
 
   it("fits the map to the search circle, never to the result markers", () => {
-    const far = row("FAR", 37.9, -122.6);
-    const { rerender } = render(<MapView {...props} rows={[rows[0]!]} />);
+    render(<MapView {...props} rows={[rows[0]!, row("FAR", 37.9, -122.6)]} />);
     const circle = radiusBounds(props.pin, 5);
+    expect(h.map.fitBounds).toHaveBeenCalledTimes(1);
     expect(h.map.fitBounds).toHaveBeenLastCalledWith(circle, expect.objectContaining({ padding: [12, 12] }));
-    // New results (here one far outside the circle) refit to the same circle.
-    rerender(<MapView {...props} rows={[rows[0]!, far]} />);
-    expect(h.map.fitBounds).toHaveBeenLastCalledWith(circle, expect.anything());
-    expect(h.map.fitBounds.mock.calls.every(([b]) => JSON.stringify(b) === JSON.stringify(circle))).toBe(true);
     const [[s, w], [n, e]] = circle;
     expect(n - s).toBeCloseTo(10 / 69, 6);
     expect(w).toBeLessThan(-121.9);
     expect(e).toBeGreaterThan(-121.9);
   });
+
+  it("refits only when the pin or the radius changes, keeping the user's zoom otherwise", () => {
+    const { rerender } = render(<MapView {...props} />);
+    expect(h.map.fitBounds).toHaveBeenCalledTimes(1);
+    // New results, a hover and a new object for the same pin do not refit.
+    rerender(<MapView {...props} rows={[rows[0]!]} />);
+    rerender(<MapView {...props} rows={[rows[0]!]} hoverApn="A1" pin={{ ...props.pin }} />);
+    expect(h.map.fitBounds).toHaveBeenCalledTimes(1);
+    rerender(<MapView {...props} pin={{ lat: 37.35, lon: -121.95 }} />);
+    expect(h.map.fitBounds).toHaveBeenCalledTimes(2);
+    rerender(<MapView {...props} pin={{ lat: 37.35, lon: -121.95 }} radiusMiles={2} />);
+    expect(h.map.fitBounds).toHaveBeenCalledTimes(3);
+    expect(h.map.fitBounds).toHaveBeenLastCalledWith(radiusBounds({ lat: 37.35, lon: -121.95 }, 2), expect.anything());
+  });
+
+  it("a late resize does not refit", () => {
+    vi.useFakeTimers();
+    try {
+      render(<MapView {...props} />);
+      const settle = h.map.on.mock.calls.find(([ev]) => ev === "resize")?.[1] as () => void;
+      vi.advanceTimersByTime(5000);
+      act(() => settle());
+      expect(h.map.fitBounds).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });

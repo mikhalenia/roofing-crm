@@ -98,21 +98,30 @@ export function radiusBounds(pin: { lat: number; lon: number }, radiusMiles: num
   ];
 }
 
+/** Layout can still change the map's size right after a fit; one resize in this window refits. */
+const SETTLE_MS = 1000;
+
 /**
- * Fits the map to the search circle when the pin, radius or results change. The result markers
- * are never used for fitting, so a small result set cannot zoom the map out past the circle.
+ * Fits the map to the search circle when the pin or the radius changes, and only then: new
+ * results, filter changes and later resizes keep the user's own zoom and pan. Result markers are
+ * never used for fitting, so a small result set cannot zoom the map out past the circle.
  */
-function FitRadius({ pin, radiusMiles, rows }: Pick<Props, "pin" | "radiusMiles" | "rows">) {
+function FitRadius({ pin, radiusMiles }: Pick<Props, "pin" | "radiusMiles">) {
   const map = useMap();
+  const { lat, lon } = pin;
   useEffect(() => {
-    const fit = () => map.fitBounds(radiusBounds(pin, radiusMiles), { padding: [12, 12], animate: false });
+    const fit = () => map.fitBounds(radiusBounds({ lat, lon }, radiusMiles), { padding: [12, 12], animate: false });
     fit();
-    // The map's size settles after layout (filter bar, agent panel), so fit again when it changes.
-    map.on("resize", fit);
-    return () => {
-      map.off("resize", fit);
+    const fittedAt = Date.now();
+    const settle = () => {
+      map.off("resize", settle);
+      if (Date.now() - fittedAt < SETTLE_MS) fit();
     };
-  }, [map, pin, radiusMiles, rows]);
+    map.on("resize", settle);
+    return () => {
+      map.off("resize", settle);
+    };
+  }, [map, lat, lon, radiusMiles]);
   return null;
 }
 
@@ -219,7 +228,7 @@ export function MapView(props: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <ClickToPin onPin={onPin} />
-      <FitRadius pin={pin} radiusMiles={radiusMiles} rows={rows} />
+      <FitRadius pin={pin} radiusMiles={radiusMiles} />
       <MapHandle mapRef={mapRef} />
       <FocusOn
         focus={focus}
