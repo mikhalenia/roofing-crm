@@ -12,7 +12,8 @@ import { SearchErrorAlert } from "../components/SearchErrorAlert";
 import { DENSE_MARKERS } from "../components/mapStyle";
 import { useProspectSearch } from "./useProspectSearch";
 
-const AGENT_WIDTH = 380;
+// With the agent open at 1280 px the map keeps over 60% of the content width.
+const AGENT_WIDTH = 340;
 
 export function ProspectPage() {
   const { state, dispatch } = useSearch();

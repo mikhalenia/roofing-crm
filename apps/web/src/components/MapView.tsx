@@ -204,6 +204,8 @@ export function MapView(props: Props) {
     <MapContainer
       center={[pin.lat, pin.lon]}
       zoom={11}
+      // Quarter steps let fitBounds fill the map with the search circle instead of snapping a level out.
+      zoomSnap={0.25}
       style={{ height: "100%", width: "100%", minHeight: 360 }}
     >
       <TileLayer
