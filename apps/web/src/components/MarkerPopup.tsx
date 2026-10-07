@@ -18,7 +18,7 @@ export function MarkerPopup({ lead: l, onDetails, onAsk }: Props) {
     ? `Permit ${l.permitNumber}: ${permitStateText(l.permitState, l.permitStateLabel)}`
     : "No permit on record";
   return (
-    <Box sx={{ minWidth: 240, maxWidth: 300 }} role="dialog" aria-label={`Property ${l.situsAddress ?? l.apn}`}>
+    <Box sx={{ minWidth: 240, maxWidth: 300 }} role="group" aria-label={`Property ${l.situsAddress ?? l.apn}`}>
       <Typography variant="subtitle2" component="h3">{l.situsAddress ?? l.apn}</Typography>
       <Typography component="div" variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
         {l.situsCity ?? "City unknown"}, APN {l.apn}

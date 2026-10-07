@@ -33,6 +33,9 @@ describe("MarkerPopup", () => {
     const onAsk = vi.fn();
     render(<MarkerPopup lead={lead} onDetails={onDetails} onAsk={onAsk} />);
     expect(screen.getByText("1 Main St")).toBeInTheDocument();
+    // A labelled group, not a dialog: the popup does not take focus or trap it.
+    expect(screen.getByRole("group", { name: "Property 1 Main St" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByText("SAN JOSE, APN A1")).toBeInTheDocument();
     expect(screen.getByText("Roof 22 yrs, based on the final inspection date")).toBeInTheDocument();
     expect(screen.getByText("Permit BLD-1: Stalled (permit expired without a final inspection)")).toBeInTheDocument();
