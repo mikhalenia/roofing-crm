@@ -12,7 +12,6 @@ export const PERMIT_STATE_LABELS: Readonly<Record<string, string>> = {
 
 export const PERMIT_STATE_HINTS: Readonly<Record<string, string>> = {
   open: 'Permit is still active',
-  expired_unfinaled: 'Permit expired without a final inspection',
   finaled: 'Permit passed its final inspection',
 };
 
@@ -60,22 +59,41 @@ export const SIGNAL_LABELS: Readonly<Record<string, string>> = {
 };
 
 const q = `["'\`]?`;
-const token = (t: string) => new RegExp(`${q}\\b${t}\\b${q}`, 'g');
+const token = (t: string) => new RegExp(`${q}\\b${t}\\b${q}`, 'gi');
+const EXPIRED = 'expired without a final inspection';
 
-/** Raw tokens (and the model's jargon for them) with the prose that replaces them, in order. */
+/**
+ * Raw tokens (and the model's jargon for them) with the prose that replaces them, in order.
+ * A state phrase before "permit(s)" is moved after the noun so the sentence stays grammatical.
+ */
 export const RAW_TOKEN_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
-  [token('expired_unfinaled'), 'expired without a final inspection'],
-  [/\bexpired,?\s+unfinaled\b|\bunfinaled\b/gi, 'expired without a final inspection'],
+  [new RegExp(`${q}\\b(?:expired_unfinaled|expired,?\\s+unfinaled|unfinaled)\\b${q}\\s+(permits?)\\b`, 'gi'), `$1 that ${EXPIRED}`],
+  [new RegExp(`${q}\\b(?:expired_unfinaled|expired,?\\s+unfinaled|unfinaled)\\b${q}`, 'gi'), EXPIRED],
   [token('approval_complete_issue_date'), ROOF_BASIS_LABELS['approval_complete_issue_date']!],
   [token('final_date'), ROOF_BASIS_LABELS['final_date']!],
   [token('aged_roof'), 'aged roof'],
   [token('open_permit'), 'open permit'],
   [token('stalled_permit'), 'stalled permit'],
   [token('approvalsComplete'), 'approvals completed'],
+  [token('isStalled'), 'stalled'],
   [token('finaled'), 'completed'],
 ];
 
+/** Keeps a capital first letter when the replaced text started a sentence. */
+function keepCase(original: string, replacement: string): string {
+  const first = original.replace(/^["'`]/, '')[0] ?? '';
+  return first && first === first.toUpperCase() && first !== first.toLowerCase()
+    ? replacement[0]!.toUpperCase() + replacement.slice(1)
+    : replacement;
+}
+
 /** Replaces every raw pipeline token in free text (agent prose) with its friendly name. */
 export function replaceRawTokens(text: string): string {
-  return RAW_TOKEN_REPLACEMENTS.reduce((t, [re, name]) => t.replace(re, name), text);
+  return RAW_TOKEN_REPLACEMENTS.reduce(
+    (t, [re, name]) =>
+      t.replace(re, (match: string, ...groups: unknown[]) =>
+        keepCase(match, name.replace('$1', typeof groups[0] === 'string' ? groups[0] : '')),
+      ),
+    text,
+  );
 }

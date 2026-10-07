@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { permitStateMeaning, permitStateShort, replaceRawTokens } from './labels';
+import { PERMIT_STATE_HINTS, permitStateMeaning, permitStateShort, replaceRawTokens } from './labels';
 
 describe('replaceRawTokens', () => {
   it('replaces every raw token and the model jargon', () => {
@@ -11,9 +11,12 @@ describe('replaceRawTokens', () => {
       'final inspection date, approval completed (issue date), aged roof, open permit, stalled permit, completed, expired without a final inspection',
     );
     expect(replaceRawTokens('all of which have expired, unfinaled permits')).toBe(
-      'all of which have expired without a final inspection permits',
+      'all of which have permits that expired without a final inspection',
     );
-    expect(replaceRawTokens('Unfinaled permit')).toBe('expired without a final inspection permit');
+    expect(replaceRawTokens('3 expired_unfinaled permits nearby')).toBe('3 permits that expired without a final inspection nearby');
+    expect(replaceRawTokens('Unfinaled permit at 1 Elm St.')).toBe('Permit that expired without a final inspection at 1 Elm St.');
+    expect(replaceRawTokens('Expired_unfinaled, since 2003.')).toBe('Expired without a final inspection, since 2003.');
+    expect(replaceRawTokens('The permit is expired_unfinaled.')).toBe('The permit is expired without a final inspection.');
     expect(replaceRawTokens('Open roofs, final inspection')).toBe('Open roofs, final inspection');
   });
 
@@ -33,6 +36,7 @@ describe('permit state names', () => {
     expect(permitStateMeaning('expired_unfinaled', true)).toBe(
       'Expired without a final inspection, but all approvals were completed (not counted as stalled)',
     );
+    expect(PERMIT_STATE_HINTS['expired_unfinaled']).toBeUndefined();
     expect(permitStateMeaning('expired_unfinaled', false)).toBe(
       'Permit expired without a final inspection or completed approvals',
     );

@@ -88,7 +88,7 @@ describe("labels", () => {
       "Two roofs match.\nSources: County of Santa Clara parcels.",
     );
     expect(displayAnswer("They have expired, unfinaled permits.\nSOURCES: A1")).toBe(
-      "They have expired without a final inspection permits.",
+      "They have permits that expired without a final inspection.",
     );
   });
 
