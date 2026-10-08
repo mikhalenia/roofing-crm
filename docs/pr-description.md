@@ -7,7 +7,7 @@
 
 No login and no credentials are needed.
 
-**Demo video:** Coming soon (will be linked before this PR is marked ready)
+**Demo video:** https://youtu.be/viPqfGyRKec
 
 ## Summary
 
